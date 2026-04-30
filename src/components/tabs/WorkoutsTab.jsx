@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Sheet from '../Sheet'
 import WorkoutForm from '../forms/WorkoutForm'
 import WorkoutDetail from '../WorkoutDetail'
-import { getRecentWorkouts, getWorkoutsThisWeek } from '../../lib/db'
+import WorkoutSession from '../WorkoutSession'
+import { getRecentWorkouts, getWorkoutsThisWeek, logWorkout } from '../../lib/db'
 import { weekStart, torontoDate, WORKOUT_SCHEDULE, formatShortDate, todaySchedule } from '../../lib/dates'
 import { WORKOUTS } from '../../lib/workouts'
 
@@ -10,6 +11,7 @@ const TYPE_LABELS = { A: 'Workout A', B: 'Workout B', stability: 'Stability', bi
 
 export default function WorkoutsTab({ onSaved }) {
   const [logSheet, setLogSheet] = useState(false)
+  const [sessionSheet, setSessionSheet] = useState(false)
   const [detailType, setDetailType] = useState(null)
   const [recent, setRecent] = useState([])
   const [thisWeek, setThisWeek] = useState([])
@@ -27,6 +29,13 @@ export default function WorkoutsTab({ onSaved }) {
 
   function handleSave() {
     setLogSheet(false)
+    load()
+    onSaved()
+  }
+
+  async function handleSessionComplete({ completed, notes, sets }) {
+    await logWorkout(scheduled.type, completed, notes, sets)
+    setSessionSheet(false)
     load()
     onSaved()
   }
@@ -79,6 +88,7 @@ export default function WorkoutsTab({ onSaved }) {
               <p style={s.sectionLabel}>Today's Workout</p>
               <p style={s.todayName}>{scheduled.emoji} {WORKOUTS[scheduled.type].name}</p>
             </div>
+            <button style={s.startBtn} onClick={() => setSessionSheet(true)}>▶ Start</button>
           </div>
           <div style={s.detailCard}>
             <WorkoutDetail type={scheduled.type} />
@@ -133,6 +143,15 @@ export default function WorkoutsTab({ onSaved }) {
       >
         {detailType && <WorkoutDetail type={detailType} />}
       </Sheet>
+
+      {/* Interactive session sheet */}
+      <Sheet
+        open={sessionSheet}
+        onClose={() => setSessionSheet(false)}
+        title={WORKOUTS[scheduled.type]?.name || ''}
+      >
+        {sessionSheet && <WorkoutSession type={scheduled.type} onComplete={handleSessionComplete} />}
+      </Sheet>
     </div>
   )
 }
@@ -150,6 +169,7 @@ const s = {
   dayEmoji: { fontSize: 18 },
   dayType: { fontSize: 9, fontWeight: 600, textAlign: 'center' },
   todayHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  startBtn: { background: '#4caf82', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0, alignSelf: 'center' },
   todayName: { margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#eee' },
   detailCard: { background: '#1a1a2e', borderRadius: 14, padding: '14px 14px 8px', marginBottom: 8 },
   workoutCard: { background: '#1a1a2e', borderRadius: 12, padding: 14, marginBottom: 10 },

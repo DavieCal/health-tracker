@@ -215,6 +215,7 @@ export async function logWorkout(workoutType, completed, notes, sets = []) {
       set_number: s.setNumber,
       reps: s.reps || null,
       weight_kg: s.weightKg || null,
+      time_sec: s.timeSec || null,
     }))
     const { error: e2 } = await supabase.from('workout_sets').insert(rows)
     if (e2) throw e2

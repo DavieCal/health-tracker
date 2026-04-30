@@ -12,9 +12,9 @@ export const WORKOUTS = {
       { name: 'Push-Ups',         detail: '12–15 reps',           cue: 'Chest to floor. If struggling, modify to knees — full range beats partial reps.' },
       { name: 'Pike Push-Ups',    detail: '10–12 reps',           cue: 'Hips high, inverted V position, head moves toward the floor. This is the shoulder press of bodyweight.' },
       { name: 'Tricep Dips',      detail: '12–15 reps',           cue: 'Use a chair or couch edge. Elbows track straight back, not flaring out.' },
-      { name: 'Plank Hold',       detail: '30–45 seconds',        cue: 'Dead-straight line from head to heel. Don\'t let hips sag or pike. Breathe steadily.' },
+      { name: 'Plank Hold',       detail: '30–45 seconds',        cue: 'Dead-straight line from head to heel. Don\'t let hips sag or pike. Breathe steadily.',        timed: true, targetSec: 40 },
       { name: 'Mountain Climbers',detail: '20 reps (10 each leg)',cue: 'Hands under shoulders, keep hips level — don\'t bounce them.' },
-      { name: 'Hollow Body Hold', detail: '20–30 seconds',        cue: 'Lower back pressed hard into the floor, arms overhead. This one will humble you.' },
+      { name: 'Hollow Body Hold', detail: '20–30 seconds',        cue: 'Lower back pressed hard into the floor, arms overhead. This one will humble you.',               timed: true, targetSec: 25 },
     ],
     cooldown: [
       { name: 'Child\'s Pose',          detail: '30 seconds' },
@@ -37,7 +37,7 @@ export const WORKOUTS = {
       { name: 'Reverse Lunges',     detail: '10 each leg',       cue: 'Step back, back knee hovers one inch from the floor. Front shin stays vertical.' },
       { name: 'Glute Bridges',      detail: '15 reps + 5s hold', cue: 'Drive through heels. Squeeze hard at the top. Key exercise for posterior chain.' },
       { name: 'Superman Hold',      detail: '10 reps, 2s hold',  cue: 'Arms forward, lift chest and legs simultaneously. Lower back and glutes doing the work.' },
-      { name: 'Wall Sit',           detail: '30–45 seconds',     cue: 'Thighs parallel to floor, back flat against wall. No sliding.' },
+      { name: 'Wall Sit',           detail: '30–45 seconds',     cue: 'Thighs parallel to floor, back flat against wall. No sliding.',                              timed: true, targetSec: 40 },
       { name: 'Calf Raises',        detail: '20 reps',           cue: 'Slow and controlled, full range. Heels drop below platform edge if possible.' },
     ],
     cooldown: [
@@ -59,10 +59,10 @@ export const WORKOUTS = {
     circuit: [
       { name: 'Dead Bug',                   detail: '8 reps each side',    cue: 'Lower back glued to floor. Opposite arm + leg extend slowly. Do not let the back arch.' },
       { name: 'Bird Dog',                   detail: '10 reps each side',   cue: 'From all-fours — extend opposite arm and leg, pause 2 seconds. Spine stays flat. Do not rotate hips.' },
-      { name: 'Side Plank',                 detail: '30–40 sec each side', cue: 'Feet stacked or staggered. Hips up and square. Don\'t let the bottom hip sag.' },
+      { name: 'Side Plank',                 detail: '30–40 sec each side', cue: 'Feet stacked or staggered. Hips up and square. Don\'t let the bottom hip sag.',          timed: true, targetSec: 35 },
       { name: 'Single-Leg Glute Bridge',    detail: '12 reps each leg',   cue: 'One leg extended straight. Drive through the heel. Hips stay level.' },
       { name: 'Y-T-W (lying prone)',        detail: '8 reps each position',cue: 'Lying face down, lift arms to Y, then T, then W. Squeezes mid-back and rear delts. Light and controlled.' },
-      { name: 'Pallof Press Hold',          detail: '20–30 sec each side', cue: 'No band? Half-kneel, reach both arms straight forward and hold. Resist rotation — trunk stays square.' },
+      { name: 'Pallof Press Hold',          detail: '20–30 sec each side', cue: 'No band? Half-kneel, reach both arms straight forward and hold. Resist rotation — trunk stays square.', timed: true, targetSec: 25 },
     ],
     cooldown: [
       { name: 'Pigeon Pose',     detail: '45 seconds each side' },

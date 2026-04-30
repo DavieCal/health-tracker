@@ -71,6 +71,7 @@ create table if not exists workout_sets (
   set_number int,
   reps int,
   weight_kg numeric(6,2),
+  time_sec int,
   created_at timestamptz default now()
 );
 
