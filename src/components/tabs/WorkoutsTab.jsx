@@ -7,12 +7,24 @@ import { getRecentWorkouts, getWorkoutsThisWeek, logWorkout } from '../../lib/db
 import { weekStart, torontoDate, WORKOUT_SCHEDULE, formatShortDate, todaySchedule } from '../../lib/dates'
 import { WORKOUTS } from '../../lib/workouts'
 
-const TYPE_LABELS = { A: 'Workout A', B: 'Workout B', stability: 'Stability', bike: 'Bike', rest: 'Rest' }
+const ACTIVITY_META = {
+  A:            { label: 'Workout A',         emoji: '💪' },
+  B:            { label: 'Workout B',         emoji: '🏋️' },
+  stability:    { label: 'Stability',         emoji: '🧘' },
+  bike:         { label: 'Bike',              emoji: '🚴' },
+  outdoor_bike: { label: 'Outdoor Ride',      emoji: '🚵' },
+  golf:         { label: 'Golf',              emoji: '⛳' },
+  hockey:       { label: 'Hockey',            emoji: '🏒' },
+  rest:         { label: 'Rest',              emoji: '😴' },
+}
+function activityLabel(type) { return ACTIVITY_META[type]?.label || type }
+function activityEmoji(type) { return ACTIVITY_META[type]?.emoji || '🏃' }
 
 export default function WorkoutsTab({ onSaved }) {
   const [logSheet, setLogSheet] = useState(false)
   const [sessionSheet, setSessionSheet] = useState(false)
   const [detailType, setDetailType] = useState(null)
+  const [sessionType, setSessionType] = useState(null)
   const [recent, setRecent] = useState([])
   const [thisWeek, setThisWeek] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,10 +46,19 @@ export default function WorkoutsTab({ onSaved }) {
   }
 
   async function handleSessionComplete({ completed, notes, sets }) {
-    await logWorkout(scheduled.type, completed, notes, sets)
+    await logWorkout(sessionType || scheduled.type, completed, notes, sets)
     setSessionSheet(false)
     load()
     onSaved()
+  }
+
+  function handleStartSession(type) {
+    setSessionType(type)
+    if (WORKOUTS[type]) {
+      setSessionSheet(true)
+    } else {
+      setLogSheet(true)
+    }
   }
 
   if (loading) return <div style={s.loading}>Loading…</div>
@@ -45,6 +66,7 @@ export default function WorkoutsTab({ onSaved }) {
   const ws = weekStart()
   const today = torontoDate()
   const scheduled = todaySchedule()
+  const activeType = sessionType || scheduled.type
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(ws + 'T00:00:00')
@@ -74,26 +96,38 @@ export default function WorkoutsTab({ onSaved }) {
             <span style={s.dayName}>{['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(dateStr + 'T00:00:00').getDay()]}</span>
             <span style={s.dayEmoji}>{logged ? (logged.completed ? '✅' : '❌') : sched.emoji}</span>
             <span style={{ ...s.dayType, color: logged?.completed ? '#4caf82' : '#666' }}>
-              {logged ? TYPE_LABELS[logged.workout_type] : sched.type.toUpperCase()}
+              {logged ? activityLabel(logged.workout_type) : sched.type.toUpperCase()}
             </span>
           </button>
         ))}
       </div>
 
-      {/* Today's workout reference */}
-      {WORKOUTS[scheduled.type] && (
-        <>
-          <div style={s.todayHeader}>
-            <div>
-              <p style={s.sectionLabel}>Today's Workout</p>
-              <p style={s.todayName}>{scheduled.emoji} {WORKOUTS[scheduled.type].name}</p>
-            </div>
-            <button style={s.startBtn} onClick={() => setSessionSheet(true)}>▶ Start</button>
-          </div>
-          <div style={s.detailCard}>
-            <WorkoutDetail type={scheduled.type} />
-          </div>
-        </>
+      {/* Today's workout */}
+      <div style={s.todayHeader}>
+        <div>
+          <p style={s.sectionLabel}>Today's Workout</p>
+          <p style={s.todayName}>{activityEmoji(activeType)} {activityLabel(activeType)}</p>
+        </div>
+        <button style={s.startBtn} onClick={() => handleStartSession(activeType)}>▶ Start</button>
+      </div>
+
+      {/* Type override strip */}
+      <div style={s.typeStrip}>
+        {Object.entries(ACTIVITY_META).filter(([id]) => id !== 'rest').map(([id, meta]) => (
+          <button
+            key={id}
+            style={{ ...s.typeChip, background: activeType === id ? '#4f9cf9' : '#1a1a2e', color: activeType === id ? '#fff' : '#888' }}
+            onClick={() => setSessionType(id === scheduled.type ? null : id)}
+          >
+            {meta.emoji} {meta.label}
+          </button>
+        ))}
+      </div>
+
+      {WORKOUTS[activeType] && (
+        <div style={s.detailCard}>
+          <WorkoutDetail type={activeType} />
+        </div>
       )}
 
       {/* Recent history */}
@@ -106,9 +140,9 @@ export default function WorkoutsTab({ onSaved }) {
               style={s.cardTypeBtn}
               onClick={() => WORKOUTS[w.workout_type] && setDetailType(w.workout_type)}
             >
-              <span style={s.cardEmoji}>{WORKOUT_SCHEDULE[new Date(w.toronto_date + 'T00:00:00').getDay()].emoji}</span>
+              <span style={s.cardEmoji}>{activityEmoji(w.workout_type)}</span>
               <div style={s.cardInfo}>
-                <span style={s.cardType}>{TYPE_LABELS[w.workout_type] || w.workout_type}</span>
+                <span style={s.cardType}>{activityLabel(w.workout_type)}</span>
                 <span style={s.cardDate}>{formatShortDate(w.toronto_date)}</span>
               </div>
             </button>
@@ -132,7 +166,7 @@ export default function WorkoutsTab({ onSaved }) {
 
       {/* Log workout sheet */}
       <Sheet open={logSheet} onClose={() => setLogSheet(false)} title="Log Workout">
-        <WorkoutForm onSave={handleSave} />
+        <WorkoutForm onSave={handleSave} initialType={sessionType ?? undefined} />
       </Sheet>
 
       {/* Workout detail sheet (tap any workout to view) */}
@@ -148,9 +182,9 @@ export default function WorkoutsTab({ onSaved }) {
       <Sheet
         open={sessionSheet}
         onClose={() => setSessionSheet(false)}
-        title={WORKOUTS[scheduled.type]?.name || ''}
+        title={WORKOUTS[activeType]?.name || ''}
       >
-        {sessionSheet && <WorkoutSession type={scheduled.type} onComplete={handleSessionComplete} />}
+        {sessionSheet && <WorkoutSession type={activeType} onComplete={handleSessionComplete} />}
       </Sheet>
     </div>
   )
@@ -169,6 +203,8 @@ const s = {
   dayEmoji: { fontSize: 18 },
   dayType: { fontSize: 9, fontWeight: 600, textAlign: 'center' },
   todayHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  typeStrip: { display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 12, marginBottom: 4, scrollbarWidth: 'none' },
+  typeChip: { flexShrink: 0, padding: '6px 12px', border: 'none', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   startBtn: { background: '#4caf82', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0, alignSelf: 'center' },
   todayName: { margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#eee' },
   detailCard: { background: '#1a1a2e', borderRadius: 14, padding: '14px 14px 8px', marginBottom: 8 },

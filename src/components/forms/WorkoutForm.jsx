@@ -3,19 +3,22 @@ import { logWorkout } from '../../lib/db'
 import { todaySchedule, WORKOUT_SCHEDULE } from '../../lib/dates'
 
 const TYPES = [
-  { id: 'A',         label: 'Workout A' },
-  { id: 'B',         label: 'Workout B' },
-  { id: 'stability', label: 'Stability' },
-  { id: 'bike',      label: 'Bike' },
-  { id: 'rest',      label: 'Rest' },
+  { id: 'A',            label: 'Workout A' },
+  { id: 'B',            label: 'Workout B' },
+  { id: 'stability',    label: 'Stability' },
+  { id: 'bike',         label: 'Bike (stationary)' },
+  { id: 'outdoor_bike', label: 'Outdoor Ride' },
+  { id: 'golf',         label: 'Golf' },
+  { id: 'hockey',       label: 'Hockey' },
+  { id: 'rest',         label: 'Rest' },
 ]
 
 const EXERCISES_A = ['Incline DB Press', 'Cable Flyes', 'Overhead Press', 'Lateral Raises', 'Plank', 'Dead Bug']
 const EXERCISES_B = ['Goblet Squat', 'Romanian DL', 'Leg Press', 'Calf Raises', 'Hip Thrust', 'Leg Curl']
 
-export default function WorkoutForm({ onSave }) {
+export default function WorkoutForm({ onSave, initialType }) {
   const scheduled = todaySchedule()
-  const [type, setType] = useState(scheduled.type)
+  const [type, setType] = useState(initialType ?? scheduled.type)
   const [completed, setCompleted] = useState(true)
   const [notes, setNotes] = useState('')
   const [showSets, setShowSets] = useState(false)
