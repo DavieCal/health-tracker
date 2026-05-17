@@ -394,32 +394,51 @@ export async function getLast7DaysLogs() {
     dates.push(torontoDate(d))
   }
   const oldest = dates[dates.length - 1]
+  // Fetch one extra day back for sleep: bedtime is logged the night before wake
+  const sleepFrom = new Date(oldest + 'T12:00:00')
+  sleepFrom.setDate(sleepFrom.getDate() - 1)
+  const sleepFromStr = sleepFrom.toISOString().split('T')[0]
+
   const [sleepRes, beerRes, cafRes] = await Promise.all([
-    supabase.from('sleep_logs').select('*').gte('toronto_date', oldest).order('created_at'),
+    supabase.from('sleep_logs').select('*').gte('toronto_date', sleepFromStr).order('created_at'),
     supabase.from('beer_logs').select('*').gte('toronto_date', oldest).order('created_at'),
     supabase.from('caffeine_logs').select('*').gte('toronto_date', oldest).order('created_at'),
   ])
   if (sleepRes.error) throw sleepRes.error
   if (beerRes.error) throw beerRes.error
   if (cafRes.error) throw cafRes.error
+
   return dates.map(date => ({
     date,
-    sleep: sleepRes.data.find(r => r.toronto_date === date) ?? null,
+    // Match by wake date; fall back to bedtime date for today's open (no wake yet) entry
+    sleep: sleepRes.data.find(r =>
+      r.wake_time ? torontoDate(new Date(r.wake_time)) === date : r.toronto_date === date
+    ) ?? null,
     beers: beerRes.data.filter(r => r.toronto_date === date),
     caffeine: cafRes.data.filter(r => r.toronto_date === date),
   }))
 }
 
 export async function getDayLogs(date) {
+  // Sleep: fetch the night before too, since bedtime is logged on the prior date
+  const prevDay = new Date(date + 'T12:00:00')
+  prevDay.setDate(prevDay.getDate() - 1)
+  const prevDayStr = prevDay.toISOString().split('T')[0]
+
   const [sleepRes, beerRes, cafRes] = await Promise.all([
-    supabase.from('sleep_logs').select('*').eq('toronto_date', date).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('sleep_logs').select('*').gte('toronto_date', prevDayStr).lte('toronto_date', date).order('created_at'),
     supabase.from('beer_logs').select('*').eq('toronto_date', date).order('created_at'),
     supabase.from('caffeine_logs').select('*').eq('toronto_date', date).order('created_at'),
   ])
   if (sleepRes.error) throw sleepRes.error
   if (beerRes.error) throw beerRes.error
   if (cafRes.error) throw cafRes.error
-  return { sleep: sleepRes.data, beers: beerRes.data || [], caffeine: cafRes.data || [] }
+
+  const sleep = sleepRes.data.find(r =>
+    r.wake_time ? torontoDate(new Date(r.wake_time)) === date : r.toronto_date === date
+  ) ?? null
+
+  return { sleep, beers: beerRes.data || [], caffeine: cafRes.data || [] }
 }
 
 export async function updateSleepLog(id, bedtimeISO, wakeISO) {
