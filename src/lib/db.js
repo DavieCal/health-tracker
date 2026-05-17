@@ -384,6 +384,77 @@ export async function getIllnessHistory(limit = 10) {
   return data
 }
 
+// ─── History / Edit ───────────────────────────────────────────────────────────
+
+export async function getLast7DaysLogs() {
+  const dates = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    dates.push(torontoDate(d))
+  }
+  const oldest = dates[dates.length - 1]
+  const [sleepRes, beerRes, cafRes] = await Promise.all([
+    supabase.from('sleep_logs').select('*').gte('toronto_date', oldest).order('created_at'),
+    supabase.from('beer_logs').select('*').gte('toronto_date', oldest).order('created_at'),
+    supabase.from('caffeine_logs').select('*').gte('toronto_date', oldest).order('created_at'),
+  ])
+  if (sleepRes.error) throw sleepRes.error
+  if (beerRes.error) throw beerRes.error
+  if (cafRes.error) throw cafRes.error
+  return dates.map(date => ({
+    date,
+    sleep: sleepRes.data.find(r => r.toronto_date === date) ?? null,
+    beers: beerRes.data.filter(r => r.toronto_date === date),
+    caffeine: cafRes.data.filter(r => r.toronto_date === date),
+  }))
+}
+
+export async function getDayLogs(date) {
+  const [sleepRes, beerRes, cafRes] = await Promise.all([
+    supabase.from('sleep_logs').select('*').eq('toronto_date', date).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('beer_logs').select('*').eq('toronto_date', date).order('created_at'),
+    supabase.from('caffeine_logs').select('*').eq('toronto_date', date).order('created_at'),
+  ])
+  if (sleepRes.error) throw sleepRes.error
+  if (beerRes.error) throw beerRes.error
+  if (cafRes.error) throw cafRes.error
+  return { sleep: sleepRes.data, beers: beerRes.data || [], caffeine: cafRes.data || [] }
+}
+
+export async function updateSleepLog(id, bedtimeISO, wakeISO) {
+  const hoursSlept = wakeISO && bedtimeISO
+    ? Math.max(0, Math.round((new Date(wakeISO) - new Date(bedtimeISO)) / 3_600_000 * 100) / 100)
+    : null
+  const { error } = await supabase.from('sleep_logs').update({
+    bedtime: bedtimeISO,
+    wake_time: wakeISO || null,
+    hours_slept: hoursSlept,
+  }).eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertDayBeers(date, totalPints, consumedAt) {
+  const { error: delErr } = await supabase.from('beer_logs').delete().eq('toronto_date', date)
+  if (delErr) throw delErr
+  if (totalPints > 0) {
+    const { error } = await supabase.from('beer_logs').insert({
+      toronto_date: date,
+      pints: totalPints,
+      is_last_of_night: true,
+      consumed_at: consumedAt || null,
+    })
+    if (error) throw error
+  }
+}
+
+export async function updateCaffeineConsumedAt(id, consumedAt) {
+  const { error } = await supabase.from('caffeine_logs').update({
+    consumed_at: consumedAt || null,
+  }).eq('id', id)
+  if (error) throw error
+}
+
 // ─── Weekly summary ───────────────────────────────────────────────────────────
 
 export async function getWeeklySummary() {

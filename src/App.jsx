@@ -3,12 +3,14 @@ import TodayTab from './components/tabs/TodayTab'
 import WorkoutsTab from './components/tabs/WorkoutsTab'
 import WeeklyTab from './components/tabs/WeeklyTab'
 import ProgressTab from './components/tabs/ProgressTab'
+import HistoryTab from './components/tabs/HistoryTab'
 
 const TABS = [
   { id: 'today',    label: 'Today',    icon: '⊙' },
   { id: 'workouts', label: 'Workouts', icon: '🏋️' },
   { id: 'weekly',   label: 'Weekly',   icon: '📊' },
   { id: 'progress', label: 'Progress', icon: '📈' },
+  { id: 'history',  label: 'Days',     icon: '📅' },
 ]
 
 export default function App() {
@@ -23,6 +25,7 @@ export default function App() {
         {tab === 'workouts' && <WorkoutsTab key={refreshKey} onSaved={bump} />}
         {tab === 'weekly'   && <WeeklyTab   key={refreshKey} />}
         {tab === 'progress' && <ProgressTab />}
+        {tab === 'history'  && <HistoryTab  key={refreshKey} />}
       </main>
       <nav style={s.nav}>
         {TABS.map(t => (

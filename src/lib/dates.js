@@ -76,3 +76,35 @@ export function todayLabel() {
     weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
   })
 }
+
+export function isoToTimeInput(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  const h = d.toLocaleString('en-CA', { hour: '2-digit', hour12: false, timeZone: TZ })
+  const m = d.toLocaleString('en-CA', { minute: '2-digit', timeZone: TZ })
+  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`
+}
+
+// Combine a YYYY-MM-DD date string + HH:MM time string into an ISO timestamp.
+// Uses local time (same assumption as logBedtime in SleepForm).
+export function dateAndTimeToISO(dateStr, timeStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const [h, m] = timeStr.split(':').map(Number)
+  d.setHours(h, m, 0, 0)
+  return d.toISOString()
+}
+
+export function nextDateStr(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+// Format a Postgres time string ("HH:MM:SS") to "10:30pm"
+export function timeStrToDisplay(timeStr) {
+  if (!timeStr) return '—'
+  const [h, m] = timeStr.split(':').map(Number)
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, '0')}${ampm}`
+}
