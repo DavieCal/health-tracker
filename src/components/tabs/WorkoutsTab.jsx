@@ -15,9 +15,13 @@ const ACTIVITY_META = {
   outdoor_bike: { label: 'Outdoor Ride',      emoji: '🚵' },
   golf:         { label: 'Golf',              emoji: '⛳' },
   hockey:       { label: 'Hockey',            emoji: '🏒' },
+  other:        { label: 'Other',             emoji: '🏃' },
   rest:         { label: 'Rest',              emoji: '😴' },
 }
-function activityLabel(type) { return ACTIVITY_META[type]?.label || type }
+function activityLabel(w) {
+  if (typeof w === 'string') return ACTIVITY_META[w]?.label || w
+  return w.custom_name || ACTIVITY_META[w.workout_type]?.label || w.workout_type
+}
 function activityEmoji(type) { return ACTIVITY_META[type]?.emoji || '🏃' }
 
 export default function WorkoutsTab({ onSaved }) {
@@ -96,7 +100,7 @@ export default function WorkoutsTab({ onSaved }) {
             <span style={s.dayName}>{['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(dateStr + 'T00:00:00').getDay()]}</span>
             <span style={s.dayEmoji}>{logged ? (logged.completed ? '✅' : '❌') : sched.emoji}</span>
             <span style={{ ...s.dayType, color: logged?.completed ? '#4caf82' : '#666' }}>
-              {logged ? activityLabel(logged.workout_type) : sched.type.toUpperCase()}
+              {logged ? activityLabel(logged) : sched.type.toUpperCase()}
             </span>
           </button>
         ))}
@@ -142,7 +146,7 @@ export default function WorkoutsTab({ onSaved }) {
             >
               <span style={s.cardEmoji}>{activityEmoji(w.workout_type)}</span>
               <div style={s.cardInfo}>
-                <span style={s.cardType}>{activityLabel(w.workout_type)}</span>
+                <span style={s.cardType}>{activityLabel(w)}</span>
                 <span style={s.cardDate}>{formatShortDate(w.toronto_date)}</span>
               </div>
             </button>

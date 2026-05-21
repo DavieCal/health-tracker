@@ -200,12 +200,13 @@ export async function getWeeklyVitaminAdherence() {
 
 // ─── Workouts ─────────────────────────────────────────────────────────────────
 
-export async function logWorkout(workoutType, completed, notes, sets = []) {
+export async function logWorkout(workoutType, completed, notes, sets = [], customName = null) {
   const { data, error } = await supabase.from('workouts').insert({
     toronto_date: torontoDate(),
     workout_type: workoutType,
     completed,
     notes: notes || null,
+    custom_name: workoutType === 'other' ? (customName || null) : null,
   }).select('id').single()
   if (error) throw error
   if (sets.length > 0) {

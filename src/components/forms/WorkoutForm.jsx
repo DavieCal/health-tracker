@@ -10,6 +10,7 @@ const TYPES = [
   { id: 'outdoor_bike', label: 'Outdoor Ride' },
   { id: 'golf',         label: 'Golf' },
   { id: 'hockey',       label: 'Hockey' },
+  { id: 'other',        label: 'Other' },
   { id: 'rest',         label: 'Rest' },
 ]
 
@@ -19,6 +20,7 @@ const EXERCISES_B = ['Goblet Squat', 'Romanian DL', 'Leg Press', 'Calf Raises', 
 export default function WorkoutForm({ onSave, initialType }) {
   const scheduled = todaySchedule()
   const [type, setType] = useState(initialType ?? scheduled.type)
+  const [customName, setCustomName] = useState('')
   const [completed, setCompleted] = useState(true)
   const [notes, setNotes] = useState('')
   const [showSets, setShowSets] = useState(false)
@@ -46,7 +48,7 @@ export default function WorkoutForm({ onSave, initialType }) {
       const cleanSets = sets
         .filter(s => s.exercise.trim())
         .map(s => ({ ...s, reps: Number(s.reps) || null, weightKg: Number(s.weightKg) || null }))
-      await logWorkout(type, completed, notes, cleanSets)
+      await logWorkout(type, completed, notes, cleanSets, customName)
       onSave()
     } catch (e) { setErr(e.message) }
     setSaving(false)
@@ -62,6 +64,15 @@ export default function WorkoutForm({ onSave, initialType }) {
           </button>
         ))}
       </div>
+
+      {type === 'other' && (
+        <input
+          placeholder="What did you do? (e.g. Mowing the lawn)"
+          value={customName}
+          onChange={e => setCustomName(e.target.value)}
+          style={{ ...s.textarea, marginBottom: 16, padding: '10px 12px', fontSize: 15 }}
+        />
+      )}
 
       <label style={s.checkRow}>
         <input type="checkbox" checked={completed} onChange={e => setCompleted(e.target.checked)} style={{ accentColor: '#4caf82' }} />
