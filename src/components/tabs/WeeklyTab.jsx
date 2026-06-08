@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getWeeklySummary, getCurrentBeerGoal, setBeerGoal } from '../../lib/db'
+import { getWeeklySummary, getWeeklyHealthDaily } from '../../lib/db'
 import { formatHours, formatShortDate } from '../../lib/dates'
 
 export default function WeeklyTab() {
@@ -7,13 +7,23 @@ export default function WeeklyTab() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getWeeklySummary().then(s => { setSummary(s); setLoading(false) })
+    Promise.all([getWeeklySummary(), getWeeklyHealthDaily()]).then(([s, hd]) => {
+      setSummary({ ...s, healthDaily: hd })
+      setLoading(false)
+    })
   }, [])
 
   if (loading || !summary) return <div style={s.loading}>Loading…</div>
 
-  const { sleep, beer, energy, vitamins, workouts, weekStart } = summary
+  const { sleep, beer, energy, vitamins, workouts, weekStart, healthDaily } = summary
   const vitDoses = ['morning', 'afternoon', 'evening']
+
+  const hdWithSteps = healthDaily.filter(d => d.steps != null)
+  const hdWithHR    = healthDaily.filter(d => d.resting_heart_rate != null)
+  const hdWithActive = healthDaily.filter(d => d.active_minutes != null)
+  const avgSteps    = hdWithSteps.length  ? Math.round(hdWithSteps.reduce((s, d) => s + d.steps, 0) / hdWithSteps.length) : null
+  const avgHR       = hdWithHR.length     ? Math.round(hdWithHR.reduce((s, d) => s + d.resting_heart_rate, 0) / hdWithHR.length) : null
+  const avgActive   = hdWithActive.length ? Math.round(hdWithActive.reduce((s, d) => s + d.active_minutes, 0) / hdWithActive.length) : null
 
   return (
     <div style={s.container}>
@@ -57,6 +67,36 @@ export default function WeeklyTab() {
           </>
         ) : <span style={s.none}>No energy logs this week</span>}
       </Stat>
+
+      {avgSteps !== null && (
+        <Stat label="Steps" emoji="👟">
+          <big style={{ color: avgSteps >= 8000 ? '#4caf82' : avgSteps >= 4000 ? '#e5a550' : '#e06c75' }}>
+            {avgSteps.toLocaleString()}
+          </big> avg/day
+          <div style={s.barWrap}>
+            <div style={{ ...s.bar, width: `${Math.min(100, (avgSteps / 10000) * 100)}%`, background: '#4caf82' }} />
+          </div>
+        </Stat>
+      )}
+
+      {avgHR !== null && (
+        <Stat label="Resting HR" emoji="❤️">
+          <big style={{ color: avgHR <= 60 ? '#4caf82' : avgHR <= 75 ? '#e5a550' : '#e06c75' }}>
+            {avgHR}
+          </big> bpm avg
+        </Stat>
+      )}
+
+      {avgActive !== null && (
+        <Stat label="Active Minutes" emoji="🏃">
+          <big style={{ color: avgActive >= 30 ? '#4caf82' : avgActive >= 15 ? '#e5a550' : '#e06c75' }}>
+            {avgActive}
+          </big> min avg/day
+          <div style={s.barWrap}>
+            <div style={{ ...s.bar, width: `${Math.min(100, (avgActive / 60) * 100)}%`, background: '#4f9cf9' }} />
+          </div>
+        </Stat>
+      )}
 
       <Stat label="Vitamins" emoji="💊">
         {vitDoses.map(dose => {

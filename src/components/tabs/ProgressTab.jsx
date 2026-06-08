@@ -6,6 +6,7 @@ import {
 import {
   getRecentEnergyLogs, getLatestSleepLogs, getBeerChartData,
   getWorkoutChartData, getWeightHistory, getRecentMoodLogs,
+  getRecentHealthDaily,
 } from '../../lib/db'
 import { formatShortDate } from '../../lib/dates'
 
@@ -21,15 +22,18 @@ export default function ProgressTab() {
       getWorkoutChartData(12),
       getWeightHistory(),
       getRecentMoodLogs(30),
-    ]).then(([energy, sleep, beer, workouts, weight, mood]) => {
-      setData({ energy, sleep: sleep.filter(r => r.wake_time).reverse(), beer, workouts, weight, mood })
+      getRecentHealthDaily(30),
+    ]).then(([energy, sleep, beer, workouts, weight, mood, healthDaily]) => {
+      setData({ energy, sleep: sleep.filter(r => r.wake_time).reverse(), beer, workouts, weight, mood, healthDaily })
       setLoading(false)
     })
   }, [])
 
   if (loading || !data) return <div style={s.loading}>Loading…</div>
 
-  const { energy, sleep, beer, workouts, weight, mood } = data
+  const { energy, sleep, beer, workouts, weight, mood, healthDaily } = data
+  const stepsData = healthDaily.filter(d => d.steps != null)
+  const hrData    = healthDaily.filter(d => d.resting_heart_rate != null)
 
   const chartProps = {
     margin: { top: 4, right: 4, left: -20, bottom: 0 },
@@ -39,6 +43,30 @@ export default function ProgressTab() {
   return (
     <div style={s.container}>
       <h2 style={s.heading}>Progress</h2>
+
+      {stepsData.length >= 2 && (
+        <Chart title="Steps (30 days)" color="#4caf82">
+          <BarChart data={stepsData} {...chartProps}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
+            <XAxis dataKey="toronto_date" tickFormatter={formatShortDate} stroke="#555" />
+            <YAxis stroke="#555" />
+            <Tooltip formatter={v => [v.toLocaleString(), 'Steps']} labelFormatter={formatShortDate} contentStyle={ttStyle} />
+            <Bar dataKey="steps" fill="#4caf82" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </Chart>
+      )}
+
+      {hrData.length >= 2 && (
+        <Chart title="Resting HR (30 days)" color="#e06c75">
+          <LineChart data={hrData} {...chartProps}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
+            <XAxis dataKey="toronto_date" tickFormatter={formatShortDate} stroke="#555" />
+            <YAxis stroke="#555" domain={['auto', 'auto']} />
+            <Tooltip formatter={v => [`${v} bpm`, 'Resting HR']} labelFormatter={formatShortDate} contentStyle={ttStyle} />
+            <Line type="monotone" dataKey="resting_heart_rate" stroke="#e06c75" strokeWidth={2} dot={false} />
+          </LineChart>
+        </Chart>
+      )}
 
       <Chart title="Sleep Quality (14 days)" color="#4caf82">
         {sleep.length < 2

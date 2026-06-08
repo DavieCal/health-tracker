@@ -12,7 +12,7 @@ import IllnessForm from '../forms/IllnessForm'
 import {
   getLatestSleepLogs, getTodayBeerLogs, getTodayCaffeine,
   getTodayEnergy, getTodayVitamins, getTodayWorkout,
-  getTodayWeight, getTodayMood, getActiveIllness,
+  getTodayWeight, getTodayMood, getActiveIllness, getTodayHealthDaily,
 } from '../../lib/db'
 import { todayLabel, todaySchedule, formatHours } from '../../lib/dates'
 
@@ -23,7 +23,7 @@ export default function TodayTab({ onSaved }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness] =
+    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily] =
       await Promise.all([
         getLatestSleepLogs(3),
         getTodayBeerLogs(),
@@ -34,8 +34,9 @@ export default function TodayTab({ onSaved }) {
         getTodayWeight(),
         getTodayMood(),
         getActiveIllness(),
+        getTodayHealthDaily(),
       ])
-    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness })
+    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily })
     setLoading(false)
   }, [])
 
@@ -51,7 +52,7 @@ export default function TodayTab({ onSaved }) {
     return <div style={s.loading}>Loading…</div>
   }
 
-  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness } = data
+  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily } = data
   const latestSleep = sleepLogs[0] || null
   const hasOpenBedtime = latestSleep && !latestSleep.wake_time
   const todayBeerPints = beerLogs.reduce((s, r) => s + r.pints, 0)
@@ -107,6 +108,24 @@ export default function TodayTab({ onSaved }) {
     },
   ]
 
+  const syncTiles = [
+    {
+      id: 'steps', emoji: '👟', label: 'Steps',
+      value: healthDaily?.steps != null ? healthDaily.steps.toLocaleString() : null,
+      color: healthDaily?.steps >= 8000 ? '#4caf82' : healthDaily?.steps >= 4000 ? '#e5a550' : '#aaa',
+    },
+    {
+      id: 'hr', emoji: '❤️', label: 'Rest. HR',
+      value: healthDaily?.resting_heart_rate ? `${healthDaily.resting_heart_rate} bpm` : null,
+      color: healthDaily?.resting_heart_rate <= 60 ? '#4caf82' : healthDaily?.resting_heart_rate <= 75 ? '#e5a550' : '#aaa',
+    },
+    {
+      id: 'active', emoji: '🏃', label: 'Active',
+      value: healthDaily?.active_minutes != null ? `${healthDaily.active_minutes}min` : null,
+      color: healthDaily?.active_minutes >= 30 ? '#4caf82' : healthDaily?.active_minutes > 0 ? '#e5a550' : '#aaa',
+    },
+  ]
+
   return (
     <div style={s.container}>
       <div style={s.header}>
@@ -131,6 +150,17 @@ export default function TodayTab({ onSaved }) {
             <span style={s.tileName}>{t.label}</span>
             <span style={{ ...s.tileValue, color: t.color }}>{t.value || '—'}</span>
           </button>
+        ))}
+      </div>
+
+      <p style={{ ...s.sectionLabel, marginTop: 20 }}>Fitbit <span style={s.syncBadge}>auto-sync</span></p>
+      <div style={s.grid}>
+        {syncTiles.map(t => (
+          <div key={t.id} style={s.syncTile}>
+            <span style={s.tileEmoji}>{t.emoji}</span>
+            <span style={s.tileName}>{t.label}</span>
+            <span style={{ ...s.tileValue, color: t.color }}>{t.value || '—'}</span>
+          </div>
         ))}
       </div>
 
@@ -188,4 +218,9 @@ const s = {
   tileEmoji: { fontSize: 22 },
   tileName: { fontSize: 11, color: '#888', fontWeight: 500 },
   tileValue: { fontSize: 13, fontWeight: 700 },
+  syncTile: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+    background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 12, padding: '16px 8px',
+  },
+  syncBadge: { fontSize: 9, fontWeight: 600, background: '#1a2a1a', color: '#4caf82', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.5, verticalAlign: 'middle', marginLeft: 4 },
 }

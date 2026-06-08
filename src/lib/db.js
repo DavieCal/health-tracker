@@ -385,6 +385,38 @@ export async function getIllnessHistory(limit = 10) {
   return data
 }
 
+// ─── Health Daily (Google Health sync) ───────────────────────────────────────
+
+export async function getTodayHealthDaily() {
+  const { data, error } = await supabase
+    .from('health_daily')
+    .select('*')
+    .eq('toronto_date', torontoDate())
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function getWeeklyHealthDaily() {
+  const { data, error } = await supabase
+    .from('health_daily')
+    .select('*')
+    .gte('toronto_date', weekStart())
+    .order('toronto_date', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function getRecentHealthDaily(days = 30) {
+  const { data, error } = await supabase
+    .from('health_daily')
+    .select('toronto_date, steps, resting_heart_rate, active_minutes')
+    .order('toronto_date', { ascending: false })
+    .limit(days)
+  if (error) throw error
+  return data.reverse()
+}
+
 // ─── History / Edit ───────────────────────────────────────────────────────────
 
 export async function getLast7DaysLogs() {

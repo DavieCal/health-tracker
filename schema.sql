@@ -91,6 +91,16 @@ create table if not exists mood_logs (
   created_at timestamptz default now()
 );
 
+create table if not exists health_daily (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null unique,
+  steps int,
+  active_minutes int,
+  calories_out int,
+  resting_heart_rate int,
+  created_at timestamptz default now()
+);
+
 create table if not exists illness_episodes (
   id uuid primary key default gen_random_uuid(),
   start_date timestamptz not null,
