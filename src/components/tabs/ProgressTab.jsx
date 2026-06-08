@@ -81,6 +81,19 @@ export default function ProgressTab() {
         }
       </Chart>
 
+      <Chart title="Sleep Hours (30 days)" color="#4caf82">
+        {sleep.length < 2
+          ? <Empty />
+          : <LineChart data={sleep} {...chartProps}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
+              <XAxis dataKey="toronto_date" tickFormatter={formatShortDate} stroke="#555" />
+              <YAxis stroke="#555" domain={['auto', 'auto']} />
+              <Tooltip formatter={v => [`${v}h`, 'Sleep']} labelFormatter={formatShortDate} contentStyle={ttStyle} />
+              <Line type="monotone" dataKey="hours_slept" stroke="#4caf82" strokeWidth={2} dot={false} />
+            </LineChart>
+        }
+      </Chart>
+
       <Chart title="Energy Score (14 days)" color="#e5a550">
         {energy.length < 2
           ? <Empty />
