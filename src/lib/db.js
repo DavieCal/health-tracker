@@ -428,23 +428,23 @@ export async function getWellnessSignal() {
   const today = torontoDate()
   const todayRow = data.find(d => d.toronto_date === today)
   const baseline = data.filter(d => d.toronto_date !== today).slice(0, 30)
-  if (!todayRow || baseline.length < 7) return null
+  if (!todayRow || baseline.length < 3) return null
 
   const signals = []
   let alertLevel = 0 // 1 = watch, 2 = alert
 
-  // Resting HR vs 30-day baseline
+  // Resting HR vs baseline
   const hrRows = baseline.filter(d => d.resting_heart_rate != null)
-  if (hrRows.length >= 5 && todayRow.resting_heart_rate != null) {
+  if (hrRows.length >= 2 && todayRow.resting_heart_rate != null) {
     const avg = hrRows.reduce((s, d) => s + d.resting_heart_rate, 0) / hrRows.length
     const delta = todayRow.resting_heart_rate - avg
     if (delta >= 8)      { signals.push(`resting HR +${Math.round(delta)} bpm above norm`); alertLevel = Math.max(alertLevel, 2) }
     else if (delta >= 5) { signals.push(`resting HR +${Math.round(delta)} bpm above norm`); alertLevel = Math.max(alertLevel, 1) }
   }
 
-  // HRV drop vs 30-day baseline
+  // HRV drop vs baseline
   const hrvRows = baseline.filter(d => d.hrv != null)
-  if (hrvRows.length >= 5 && todayRow.hrv != null) {
+  if (hrvRows.length >= 2 && todayRow.hrv != null) {
     const avg = hrvRows.reduce((s, d) => s + d.hrv, 0) / hrvRows.length
     const dropPct = (avg - todayRow.hrv) / avg * 100
     if (dropPct >= 20)      { signals.push(`HRV down ${Math.round(dropPct)}% from norm`); alertLevel = Math.max(alertLevel, 2) }
@@ -453,7 +453,7 @@ export async function getWellnessSignal() {
 
   // Step drop — only counts as a signal if another signal already present
   const stepsRows = baseline.filter(d => d.steps != null)
-  if (stepsRows.length >= 5 && todayRow.steps != null && alertLevel >= 1) {
+  if (stepsRows.length >= 2 && todayRow.steps != null && alertLevel >= 1) {
     const avg = stepsRows.reduce((s, d) => s + d.steps, 0) / stepsRows.length
     const dropPct = (avg - todayRow.steps) / avg * 100
     if (dropPct >= 60) signals.push(`steps ${Math.round(dropPct)}% below norm`)
