@@ -98,6 +98,7 @@ create table if not exists health_daily (
   active_minutes int,
   calories_out int,
   resting_heart_rate int,
+  hrv numeric(5,2),
   created_at timestamptz default now()
 );
 

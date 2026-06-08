@@ -12,7 +12,7 @@ import IllnessForm from '../forms/IllnessForm'
 import {
   getLatestSleepLogs, getTodayBeerLogs, getTodayCaffeine,
   getTodayEnergy, getTodayVitamins, getTodayWorkout,
-  getTodayWeight, getTodayMood, getActiveIllness, getTodayHealthDaily,
+  getTodayWeight, getTodayMood, getActiveIllness, getTodayHealthDaily, getWellnessSignal,
 } from '../../lib/db'
 import { todayLabel, todaySchedule, formatHours } from '../../lib/dates'
 
@@ -23,7 +23,7 @@ export default function TodayTab({ onSaved }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily] =
+    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness] =
       await Promise.all([
         getLatestSleepLogs(3),
         getTodayBeerLogs(),
@@ -35,8 +35,9 @@ export default function TodayTab({ onSaved }) {
         getTodayMood(),
         getActiveIllness(),
         getTodayHealthDaily(),
+        getWellnessSignal(),
       ])
-    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily })
+    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness })
     setLoading(false)
   }, [])
 
@@ -52,7 +53,7 @@ export default function TodayTab({ onSaved }) {
     return <div style={s.loading}>Loading…</div>
   }
 
-  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily } = data
+  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness } = data
   const latestSleep = sleepLogs[0] || null
   const hasOpenBedtime = latestSleep && !latestSleep.wake_time
   const todayBeerPints = beerLogs.reduce((s, r) => s + r.pints, 0)
@@ -135,6 +136,12 @@ export default function TodayTab({ onSaved }) {
           <span style={s.scheduleText}>{schedule.label}</span>
         </div>
       </div>
+
+      {wellness && (
+        <div style={{ ...s.illnessBanner, borderColor: wellness.alertLevel === 2 ? '#e06c75' : '#e5a550', color: wellness.alertLevel === 2 ? '#e06c75' : '#e5a550', background: wellness.alertLevel === 2 ? '#2a1a1a' : '#2a2010' }}>
+          {wellness.alertLevel === 2 ? '⚠️ Illness signal' : '👁 Wellness watch'} · {wellness.signals.join(' · ')}
+        </div>
+      )}
 
       {illness && (
         <div style={s.illnessBanner}>
