@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { WORKOUTS } from '../lib/workouts'
+import { WORKOUTS, EQUIPMENT } from '../lib/workouts'
 
 export default function WorkoutDetail({ type }) {
   const workout = WORKOUTS[type]
@@ -23,6 +23,14 @@ export default function WorkoutDetail({ type }) {
           <ExerciseRow key={i} num={i + 1} exercise={ex} />
         ))}
       </Section>
+
+      {workout.finisher?.length > 0 && (
+        <Section title="Finisher" emoji="🏁" color="#e5a550">
+          {workout.finisher.map((ex, i) => (
+            <ExerciseRow key={i} num="🧳" exercise={ex} />
+          ))}
+        </Section>
+      )}
 
       <Section title="Cool-Down" emoji="🧊" color="#4caf82">
         {workout.cooldown.map((ex, i) => (
@@ -55,7 +63,12 @@ function ExerciseRow({ num, exercise }) {
       <div style={s.exTop}>
         <span style={s.exNum}>{num}</span>
         <div style={s.exInfo}>
-          <span style={s.exName}>{exercise.name}</span>
+          <span style={s.exName}>
+            {exercise.name}
+            {(exercise.requires || exercise.equipment) && (
+              <span style={s.reqTag}>{EQUIPMENT[exercise.requires || exercise.equipment].emoji} {EQUIPMENT[exercise.requires || exercise.equipment].label} only</span>
+            )}
+          </span>
           <span style={s.exDetail}>{exercise.detail}</span>
         </div>
         <span style={s.exChevron}>{open ? '▾' : '▸'}</span>
@@ -63,6 +76,11 @@ function ExerciseRow({ num, exercise }) {
       {open && exercise.cue && (
         <p style={s.exCue}>{exercise.cue}</p>
       )}
+      {open && Object.entries(exercise.variants || {}).map(([k, v]) => (
+        <p key={k} style={s.exCue}>
+          <b style={s.variantLabel}>{EQUIPMENT[k].emoji} {EQUIPMENT[k].label} option: {v.name}</b> · {v.detail}<br />{v.cue}
+        </p>
+      ))}
     </div>
   )
 }
@@ -86,4 +104,6 @@ const s = {
   exDetail: { fontSize: 12, color: '#666' },
   exChevron: { color: '#444', fontSize: 14, flexShrink: 0 },
   exCue: { margin: '10px 0 2px 32px', fontSize: 13, color: '#aaa', lineHeight: 1.5 },
+  reqTag: { marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#4caf82' },
+  variantLabel: { color: '#ccc' },
 }

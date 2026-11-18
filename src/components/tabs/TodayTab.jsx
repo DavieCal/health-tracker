@@ -9,12 +9,15 @@ import VitaminForm from '../forms/VitaminForm'
 import WeightForm from '../forms/WeightForm'
 import MoodForm from '../forms/MoodForm'
 import IllnessForm from '../forms/IllnessForm'
+import MobilitySession from '../MobilitySession'
 import {
   getLatestSleepLogs, getTodayBeerLogs, getTodayCaffeine,
   getTodayEnergy, getTodayVitamins, getTodayWorkout,
   getTodayWeight, getTodayMood, getActiveIllness, getTodayHealthDaily, getWellnessSignal,
+  getTodayMobility, logMobility,
 } from '../../lib/db'
 import { todayLabel, todaySchedule, formatHours } from '../../lib/dates'
+import { MOBILITY_MODES, defaultMobilityMode } from '../../lib/mobility'
 
 export default function TodayTab({ onSaved }) {
   const [sheet, setSheet] = useState(null)
@@ -23,7 +26,7 @@ export default function TodayTab({ onSaved }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness] =
+    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility] =
       await Promise.all([
         getLatestSleepLogs(3),
         getTodayBeerLogs(),
@@ -36,8 +39,9 @@ export default function TodayTab({ onSaved }) {
         getActiveIllness(),
         getTodayHealthDaily(),
         getWellnessSignal(),
+        getTodayMobility(),
       ])
-    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness })
+    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility })
     setLoading(false)
   }, [])
 
@@ -53,11 +57,17 @@ export default function TodayTab({ onSaved }) {
     return <div style={s.loading}>Loading…</div>
   }
 
-  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness } = data
+  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility } = data
   const latestSleep = sleepLogs[0] || null
   const hasOpenBedtime = latestSleep && !latestSleep.wake_time
   const todayBeerPints = beerLogs.reduce((s, r) => s + r.pints, 0)
   const schedule = todaySchedule()
+  const mobilityMode = defaultMobilityMode(schedule.type)
+
+  async function handleMobilityComplete(result) {
+    await logMobility(result)
+    handleSave()
+  }
 
   const tiles = [
     {
@@ -149,6 +159,21 @@ export default function TodayTab({ onSaved }) {
         </div>
       )}
 
+      <button style={s.mobilityCard} onClick={() => setSheet('mobility')}>
+        <span style={s.mobilitySun} aria-hidden="true" />
+        <span style={s.mobilityInfo}>
+          <span style={s.mobilityTitle}>Morning mobility</span>
+          <span style={s.mobilitySub}>
+            {mobility
+              ? `${MOBILITY_MODES[mobility.mode]?.label || mobility.mode} · ${mobility.duration_min} min · ${mobility.steps_done}/${mobility.steps_total}`
+              : `${MOBILITY_MODES[mobilityMode].label} · ${MOBILITY_MODES[mobilityMode].range}`}
+          </span>
+        </span>
+        <span style={{ ...s.mobilityStatus, color: mobility ? '#4caf82' : '#e9b949' }}>
+          {mobility ? '✓ Done' : '▶ Start'}
+        </span>
+      </button>
+
       <p style={s.sectionLabel}>Quick Log</p>
       <div style={s.grid}>
         {tiles.map(t => (
@@ -198,6 +223,9 @@ export default function TodayTab({ onSaved }) {
       <Sheet open={sheet === 'illness'} onClose={() => setSheet(null)} title="Illness">
         <IllnessForm activeIllness={illness} onSave={handleSave} />
       </Sheet>
+      <Sheet open={sheet === 'mobility'} onClose={() => setSheet(null)} title="Morning Mobility">
+        {sheet === 'mobility' && <MobilitySession initialMode={mobilityMode} onComplete={handleMobilityComplete} />}
+      </Sheet>
     </div>
   )
 }
@@ -215,6 +243,12 @@ const s = {
   scheduleText: {},
   illnessBanner: { background: '#2a1a1a', border: '1px solid #e06c75', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#e06c75', marginBottom: 16 },
   illnessBtn: { background: 'none', border: 'none', color: '#4caf82', cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: 14 },
+  mobilityCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: '#1a1a2e', border: '1px solid #2a2a3e', borderRadius: 12, padding: '14px 16px', marginBottom: 20, cursor: 'pointer', textAlign: 'left' },
+  mobilitySun: { width: 32, height: 16, borderRadius: '32px 32px 0 0', background: '#e9b949', flexShrink: 0 },
+  mobilityInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },
+  mobilityTitle: { fontSize: 15, fontWeight: 700, color: '#eee' },
+  mobilitySub: { fontSize: 12, color: '#888' },
+  mobilityStatus: { fontSize: 14, fontWeight: 700, flexShrink: 0 },
   sectionLabel: { margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 1 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 },
   tile: {

@@ -235,6 +235,20 @@ export async function getTodayWorkout() {
   return data
 }
 
+// Most recent logged weight for an exercise (e.g. Farmer's Carry), used to prefill the next session.
+export async function getLastExerciseWeight(exercise) {
+  const { data, error } = await supabase
+    .from('workout_sets')
+    .select('weight_kg')
+    .eq('exercise', exercise)
+    .not('weight_kg', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data?.weight_kg ?? null
+}
+
 export async function getRecentWorkouts(limit = 30) {
   const { data, error } = await supabase
     .from('workouts')
@@ -590,4 +604,31 @@ export async function getWeeklySummary() {
     vitamins: vitaminData,
     workouts: { logs: workouts, completed: workouts.filter(w => w.completed).length },
   }
+}
+
+// ─── Mobility ─────────────────────────────────────────────────────────────────
+
+export async function logMobility({ mode, durationMin, stepsDone, stepsTotal, notes }) {
+  const { error } = await supabase.from('mobility_logs').insert({
+    toronto_date: torontoDate(),
+    mode,
+    duration_min: durationMin,
+    steps_done: stepsDone,
+    steps_total: stepsTotal,
+    notes: notes || null,
+  })
+  if (error) throw error
+}
+
+// Returns null (rather than throwing) so the Today tab still loads if the table isn't created yet.
+export async function getTodayMobility() {
+  const { data, error } = await supabase
+    .from('mobility_logs')
+    .select('*')
+    .eq('toronto_date', torontoDate())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) { console.warn('mobility_logs:', error.message); return null }
+  return data
 }

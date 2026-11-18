@@ -29,12 +29,14 @@ src/
 ├── main.jsx
 ├── Sheet.jsx                 Reusable bottom-sheet overlay (used by all forms)
 ├── WorkoutDetail.jsx         Read-only workout reference (warm-up, circuit, cool-down)
-├── WorkoutSession.jsx        Interactive session: set logger + count-up timer
+├── WorkoutSession.jsx        Interactive session: equipment picker, set logger, timers, finisher
+├── MobilitySession.jsx       Morning mobility checklist (Quick/Full modes, per-step timers)
 ├── lib/
 │   ├── supabase.js           Supabase client init
 │   ├── db.js                 All Supabase queries (one function per operation)
 │   ├── dates.js              Toronto timezone helpers + WORKOUT_SCHEDULE
-│   └── workouts.js           Full workout data (exercises, cues, timed flags)
+│   ├── workouts.js           Full workout data (exercises, cues, timed flags, equipment variants, finisher)
+│   └── mobility.js           Morning mobility routine (doses per quick/full mode)
 ├── components/
 │   ├── tabs/
 │   │   ├── TodayTab.jsx      Quick-log grid + today's summary
@@ -77,6 +79,11 @@ Defined in `lib/dates.js` as `WORKOUT_SCHEDULE` keyed by `getDay()` (0=Sun):
 - Rep exercises: 3 pre-populated set rows (reps + kg), expandable with "+ Set"
 - Timed exercises: count-up timer with progress bar toward `targetSec` target; Log captures the elapsed time and resets for next set
 - Timed exercises are flagged in `lib/workouts.js` with `timed: true, targetSec: N`
+- Equipment: every exercise has a bodyweight base + `variants: { band: {...} }`; `equipment: 'band'` marks a base that itself needs equipment (Band Overhead Press), `requires: 'bar'` hides an exercise unless that equipment is selected. Each exercise has a per-session version toggle; the "Default for today" picker sets all toggles. The picker only lists equipment referenced in the data (`EQUIPMENT` = band / bar / kb), so adding pull-up bar or kettlebell work is data-only. Owned equipment persists per-device in localStorage.
+- `finisher` exercises (Farmer's Carry on A/B/stability) are `weightOnly`: kg per carry, prefilled from the last logged weight via `getLastExerciseWeight()`
+
+### Morning mobility
+Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 min) on scheduled workout days, Full (15–20 min) on rest days. A step with `quick: null` dose is skipped in Quick mode. Logged to `mobility_logs`.
 
 ### db.js conventions
 - Each table has focused functions: `logX()` for inserts, `getTodayX()` / `getRecentX()` / `getXChartData()` for reads
@@ -100,6 +107,7 @@ Defined in `lib/dates.js` as `WORKOUT_SCHEDULE` keyed by `getDay()` (0=Sun):
 | `weight_logs` | Weight in kg |
 | `mood_logs` | Score 1–5 |
 | `illness_episodes` | start_date / end_date pairs |
+| `mobility_logs` | Morning mobility: mode (quick/full), duration_min, steps_done/total |
 
 RLS is disabled on all tables (personal app, anon key).
 

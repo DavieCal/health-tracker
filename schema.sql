@@ -110,3 +110,15 @@ create table if not exists illness_episodes (
   days_lasted int,
   created_at timestamptz default now()
 );
+
+create table if not exists mobility_logs (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null,
+  mode text not null check (mode in ('quick', 'full')),
+  duration_min int,
+  steps_done int,
+  steps_total int,
+  notes text,
+  created_at timestamptz default now()
+);
+alter table mobility_logs disable row level security;
