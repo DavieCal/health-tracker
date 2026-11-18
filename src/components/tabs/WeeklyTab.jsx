@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getWeeklySummary, getWeeklyHealthDaily } from '../../lib/db'
 import { formatHours, formatShortDate } from '../../lib/dates'
+import { planForDate, dayStatus, totalPints, addDays, weekdayOf, WEEKDAY_NAMES, PLAN_TYPES } from '../../lib/beerPlan'
 
 export default function WeeklyTab() {
   const [summary, setSummary] = useState(null)
@@ -52,8 +53,9 @@ export default function WeeklyTab() {
         <big style={{ color: beer.total > beer.goal ? '#e06c75' : '#eee' }}>{beer.total}pt</big>
         {' '}/ {beer.goal}pt goal
         <div style={s.barWrap}>
-          <div style={{ ...s.bar, width: `${Math.min(100, (beer.total / beer.goal) * 100)}%`, background: beer.total > beer.goal ? '#e06c75' : '#4caf82' }} />
+          <div style={{ ...s.bar, width: `${Math.min(100, (beer.total / Math.max(1, beer.goal)) * 100)}%`, background: beer.total > beer.goal ? '#e06c75' : '#4caf82' }} />
         </div>
+        <BeerWeekStrip beer={beer} weekStart={weekStart} />
       </Stat>
 
       <Stat label="Energy" emoji="⚡">
@@ -117,6 +119,31 @@ export default function WeeklyTab() {
   )
 }
 
+// Mon–Sun: planned day type, and for days so far whether it went to plan.
+function BeerWeekStrip({ beer, weekStart }) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(weekStart, i)
+    const plan = planForDate(date, beer.weekPlan, beer.periods)
+    const logs = beer.logs.filter(r => r.toronto_date === date)
+    const past = date <= beer.today
+    return { date, plan, pints: totalPints(logs), status: past ? dayStatus(plan, logs) : 'future' }
+  })
+  const color = { ok: '#4caf82', over: '#e06c75', none: '#888', future: '#444' }
+  return (
+    <div style={s.beerStrip}>
+      {days.map(d => (
+        <div key={d.date} style={{ ...s.beerDay, borderColor: d.status === 'future' ? '#2a2a3e' : color[d.status] }}>
+          <span style={s.beerDayName}>{WEEKDAY_NAMES[weekdayOf(d.date)]}</span>
+          <span style={s.beerDayEmoji}>{d.plan.type === 'vacation' ? '🏖️' : PLAN_TYPES[d.plan.type]?.emoji}</span>
+          <span style={{ ...s.beerDayVal, color: color[d.status] }}>
+            {d.status === 'future' ? (d.plan.type === 'cap' ? `≤${d.plan.cap}` : '') : d.pints > 0 ? d.pints : '0'}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Stat({ label, emoji, children }) {
   return (
     <div style={st.card}>
@@ -144,6 +171,11 @@ const s = {
   none: { color: '#555', fontSize: 14 },
   barWrap: { height: 6, background: '#2a2a3e', borderRadius: 3, marginTop: 8, overflow: 'hidden' },
   bar: { height: '100%', borderRadius: 3, transition: 'width 0.4s' },
+  beerStrip: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginTop: 12 },
+  beerDay: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', border: '1px solid', borderRadius: 8, background: '#0d0d1a' },
+  beerDayName: { fontSize: 10, color: '#666', fontWeight: 600 },
+  beerDayEmoji: { fontSize: 14 },
+  beerDayVal: { fontSize: 11, fontWeight: 700, minHeight: 14 },
   vitRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
   vitDose: { width: 80, fontSize: 13, color: '#aaa', textTransform: 'capitalize' },
   miniBarWrap: { flex: 1, height: 6, background: '#2a2a3e', borderRadius: 3, overflow: 'hidden' },

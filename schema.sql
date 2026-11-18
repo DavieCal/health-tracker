@@ -122,3 +122,34 @@ create table if not exists mobility_logs (
   created_at timestamptz default now()
 );
 alter table mobility_logs disable row level security;
+
+-- ─── Beer plan (2026-11) ──────────────────────────────────────────────────────
+-- Work samples: kind = 'sample' (≤ ½ pt keeps the day dry)
+alter table beer_logs add column if not exists kind text not null default 'beer';
+alter table beer_logs drop constraint if exists beer_logs_kind_check;
+alter table beer_logs add constraint beer_logs_kind_check check (kind in ('beer', 'sample'));
+
+-- Per-day plan keyed by getDay() (0 = Sun); week_start = 'template' row holds the default plan
+alter table beer_goals add column if not exists day_plan jsonb;
+
+-- Morning commitment
+create table if not exists beer_intentions (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null unique,
+  plan_type text not null check (plan_type in ('dry', 'sample', 'cap', 'open')),
+  cap numeric(4,2),
+  note text,
+  created_at timestamptz default now()
+);
+alter table beer_intentions disable row level security;
+
+-- Dry weeks and vacations (end_date null = open-ended)
+create table if not exists plan_periods (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null check (kind in ('dry', 'vacation')),
+  start_date text not null,
+  end_date text,
+  label text,
+  created_at timestamptz default now()
+);
+alter table plan_periods disable row level security;

@@ -85,6 +85,14 @@ Defined in `lib/dates.js` as `WORKOUT_SCHEDULE` keyed by `getDay()` (0=Sun):
 ### Morning mobility
 Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 min) on scheduled workout days, Full (15–20 min) on rest days. A step with `quick: null` dose is skipped in Quick mode. Logged to `mobility_logs`.
 
+### Beer plan + vacation mode (`lib/beerPlan.js`)
+- Day plan types: `dry` / `sample` (work samples only) / `cap` (up to N) / `open`, keyed by `getDay()` in `beer_goals.day_plan`. Row `week_start = 'template'` is the default for future weeks; per-week rows are overrides (dry-day swaps). `DEFAULT_WEEK_PLAN` (Plan B: Sun/Mon/Thu dry, Tue samples, Wed ≤1 for owner meeting) is used until a template is saved. `saveWeekPlan` also keeps `target_pints` + `alcohol_free_days` filled for the health-coach bot.
+- Sample rule: `beer_logs.kind = 'sample'`; a day is dry if all logs are samples totalling ≤ ½ pt (`isDryDay`). "Sample > ½ pt" logs 1 pt.
+- `plan_periods` holds dry periods and vacations as date ranges (`end_date` null = open-ended). `planForDate()` applies them: vacation overrides everything; a dry period turns days dry but keeps sample days.
+- Vacation: `scheduleFor(date, periods)` in `dates.js` returns `VACATION_SCHEDULE` (no workout); Today hides the beer card; reminders (when built) must skip vacation days.
+- Morning commitment: `beer_intentions` (one row per `toronto_date`), prefilled from the day's plan.
+- New-table reads (`getWeekPlan`, `getPlanPeriods`, `getTodayIntention`, `getTodayMobility`) swallow errors and fall back, so the app loads even if a migration hasn't been run.
+
 ### db.js conventions
 - Each table has focused functions: `logX()` for inserts, `getTodayX()` / `getRecentX()` / `getXChartData()` for reads
 - Sleep is paired: `logBedtime()` creates a row with `wake_time = null`; `logWake()` finds the most recent unpaired row and updates it
@@ -97,8 +105,10 @@ Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 mi
 | Table | Purpose |
 |-------|---------|
 | `sleep_logs` | Paired bedtime/wake rows; `hours_slept`, `quality` filled on wake |
-| `beer_logs` | Per-session pint entries |
-| `beer_goals` | Weekly pint target + alcohol-free day targets |
+| `beer_logs` | Per-session pint entries; `kind` = beer / sample |
+| `beer_goals` | Weekly pint target + alcohol-free days + `day_plan` jsonb; `week_start='template'` = default plan |
+| `beer_intentions` | Morning commitment per day: plan_type, cap, if-then note |
+| `plan_periods` | Dry periods + vacations: kind, start_date, end_date (null = open) |
 | `caffeine_logs` | Source, amount, estimated mg |
 | `energy_logs` | Afternoon score 1–5 |
 | `vitamin_logs` | Dose per entry (morning/afternoon/evening/soak) |

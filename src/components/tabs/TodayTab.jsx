@@ -10,23 +10,30 @@ import WeightForm from '../forms/WeightForm'
 import MoodForm from '../forms/MoodForm'
 import IllnessForm from '../forms/IllnessForm'
 import MobilitySession from '../MobilitySession'
+import BeerPlanCard from '../BeerPlanCard'
+import IntentionForm from '../forms/IntentionForm'
+import BeerPlanEditor from '../forms/BeerPlanEditor'
 import {
   getLatestSleepLogs, getTodayBeerLogs, getTodayCaffeine,
   getTodayEnergy, getTodayVitamins, getTodayWorkout,
   getTodayWeight, getTodayMood, getActiveIllness, getTodayHealthDaily, getWellnessSignal,
   getTodayMobility, logMobility,
+  getWeekPlan, getPlanPeriods, getTodayIntention, getWeeklyBeerData, setIntention,
 } from '../../lib/db'
-import { todayLabel, todaySchedule, formatHours } from '../../lib/dates'
+import { todayLabel, torontoDate, scheduleFor, formatHours, formatShortDate } from '../../lib/dates'
 import { MOBILITY_MODES, defaultMobilityMode } from '../../lib/mobility'
+import { planForDate, dayStatus, daysBetween } from '../../lib/beerPlan'
 
 export default function TodayTab({ onSaved }) {
   const [sheet, setSheet] = useState(null)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility] =
+  // quiet = refresh data without the loading screen (keeps open sheets mounted)
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    const [sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility,
+      weekPlan, periods, intention, weekBeer] =
       await Promise.all([
         getLatestSleepLogs(3),
         getTodayBeerLogs(),
@@ -40,8 +47,13 @@ export default function TodayTab({ onSaved }) {
         getTodayHealthDaily(),
         getWellnessSignal(),
         getTodayMobility(),
+        getWeekPlan(),
+        getPlanPeriods(),
+        getTodayIntention(),
+        getWeeklyBeerData(),
       ])
-    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility })
+    setData({ sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility,
+      weekPlan, periods, intention, weekBeer })
     setLoading(false)
   }, [])
 
@@ -57,16 +69,36 @@ export default function TodayTab({ onSaved }) {
     return <div style={s.loading}>Loading…</div>
   }
 
-  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility } = data
+  const { sleepLogs, beerLogs, caffeine, energy, vitamins, workout, weight, mood, illness, healthDaily, wellness, mobility,
+    weekPlan, periods, intention, weekBeer } = data
   const latestSleep = sleepLogs[0] || null
   const hasOpenBedtime = latestSleep && !latestSleep.wake_time
   const todayBeerPints = beerLogs.reduce((s, r) => s + r.pints, 0)
-  const schedule = todaySchedule()
+  const today = torontoDate()
+  const schedule = scheduleFor(today, periods)
   const mobilityMode = defaultMobilityMode(schedule.type)
+
+  // Beer plan
+  const beerPlan = planForDate(today, weekPlan, periods)
+  const onVacation = beerPlan.type === 'vacation'
+  const activeBeerPlan = intention ? { type: intention.plan_type, cap: intention.cap } : beerPlan
+  const beerStatus = dayStatus(activeBeerPlan, beerLogs)
+  const dryPeriod = periods
+    .filter(p => p.kind === 'dry' && p.end_date && p.end_date >= today && daysBetween(today, p.start_date) <= 30)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0]
 
   async function handleMobilityComplete(result) {
     await logMobility(result)
     handleSave()
+  }
+
+  async function commitPlan() {
+    try {
+      await setIntention({ plan_type: beerPlan.type, cap: beerPlan.cap, note: beerPlan.note })
+      load(true)
+    } catch (e) {
+      console.error('commit intention failed:', e.message)
+    }
   }
 
   const tiles = [
@@ -80,7 +112,10 @@ export default function TodayTab({ onSaved }) {
     {
       id: 'beer', emoji: '🍺', label: 'Beer',
       value: todayBeerPints > 0 ? `${todayBeerPints}pt` : null,
-      color: todayBeerPints > 2 ? '#e06c75' : todayBeerPints > 0 ? '#e5a550' : '#aaa',
+      color: todayBeerPints === 0 ? '#aaa'
+        : beerStatus === 'over' ? '#e06c75'
+        : beerStatus === 'ok' ? '#4caf82'
+        : todayBeerPints > 2 ? '#e06c75' : '#e5a550',
     },
     {
       id: 'caffeine', emoji: '☕', label: 'Caff.',
@@ -153,6 +188,20 @@ export default function TodayTab({ onSaved }) {
         </div>
       )}
 
+      {onVacation && (
+        <button style={s.vacationBanner} onClick={() => setSheet('beerplan')}>
+          🏖️ Vacation mode{beerPlan.period?.end_date ? ` until ${formatShortDate(beerPlan.period.end_date)}` : ''} · no plans, no reminders
+        </button>
+      )}
+
+      {!onVacation && dryPeriod && (
+        <div style={s.dryBanner}>
+          🌵 {dryPeriod.label || 'Dry week'} · {dryPeriod.start_date <= today
+            ? `day ${daysBetween(dryPeriod.start_date, today) + 1} of ${daysBetween(dryPeriod.start_date, dryPeriod.end_date) + 1}`
+            : `starts ${formatShortDate(dryPeriod.start_date)} · in ${daysBetween(today, dryPeriod.start_date)} day${daysBetween(today, dryPeriod.start_date) === 1 ? '' : 's'}`}
+        </div>
+      )}
+
       {illness && (
         <div style={s.illnessBanner}>
           🤒 Currently sick · <button style={s.illnessBtn} onClick={() => setSheet('illness')}>Mark recovered</button>
@@ -173,6 +222,21 @@ export default function TodayTab({ onSaved }) {
           {mobility ? '✓ Done' : '▶ Start'}
         </span>
       </button>
+
+      {!onVacation && (
+        <BeerPlanCard
+          plan={beerPlan}
+          intention={intention}
+          todayLogs={beerLogs}
+          weekLogs={weekBeer.logs}
+          weekPlan={weekPlan}
+          periods={periods}
+          today={today}
+          onCommit={commitPlan}
+          onAdjust={() => setSheet('intention')}
+          onEditPlan={() => setSheet('beerplan')}
+        />
+      )}
 
       <p style={s.sectionLabel}>Quick Log</p>
       <div style={s.grid}>
@@ -223,6 +287,12 @@ export default function TodayTab({ onSaved }) {
       <Sheet open={sheet === 'illness'} onClose={() => setSheet(null)} title="Illness">
         <IllnessForm activeIllness={illness} onSave={handleSave} />
       </Sheet>
+      <Sheet open={sheet === 'intention'} onClose={() => setSheet(null)} title="Today's Intention">
+        {sheet === 'intention' && <IntentionForm plan={beerPlan} intention={intention} onSave={handleSave} />}
+      </Sheet>
+      <Sheet open={sheet === 'beerplan'} onClose={() => setSheet(null)} title="Beer Plan">
+        {sheet === 'beerplan' && <BeerPlanEditor weekPlan={weekPlan} periods={periods} onSaved={() => load(true)} />}
+      </Sheet>
       <Sheet open={sheet === 'mobility'} onClose={() => setSheet(null)} title="Morning Mobility">
         {sheet === 'mobility' && <MobilitySession initialMode={mobilityMode} onComplete={handleMobilityComplete} />}
       </Sheet>
@@ -243,6 +313,8 @@ const s = {
   scheduleText: {},
   illnessBanner: { background: '#2a1a1a', border: '1px solid #e06c75', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#e06c75', marginBottom: 16 },
   illnessBtn: { background: 'none', border: 'none', color: '#4caf82', cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: 14 },
+  vacationBanner: { display: 'block', width: '100%', textAlign: 'left', background: '#10283a', border: '1px solid #4f9cf9', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#8cc4ff', marginBottom: 16, cursor: 'pointer' },
+  dryBanner: { background: '#1a2a1a', border: '1px solid #4caf82', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#4caf82', marginBottom: 16 },
   mobilityCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: '#1a1a2e', border: '1px solid #2a2a3e', borderRadius: 12, padding: '14px 16px', marginBottom: 20, cursor: 'pointer', textAlign: 'left' },
   mobilitySun: { width: 32, height: 16, borderRadius: '32px 32px 0 0', background: '#e9b949', flexShrink: 0 },
   mobilityInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },

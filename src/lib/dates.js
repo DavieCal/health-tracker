@@ -71,6 +71,17 @@ export function todaySchedule() {
   return WORKOUT_SCHEDULE[d.getDay()]
 }
 
+export const VACATION_SCHEDULE = { type: 'rest', label: 'Vacation', emoji: '🏖️', vacation: true }
+
+// Schedule for a date, honouring vacation periods from plan_periods (no workouts scheduled on vacation).
+export function scheduleFor(dateStr, periods = []) {
+  const onVacation = periods.some(p =>
+    p.kind === 'vacation' && p.start_date <= dateStr && (!p.end_date || p.end_date >= dateStr)
+  )
+  if (onVacation) return VACATION_SCHEDULE
+  return WORKOUT_SCHEDULE[new Date(dateStr + 'T00:00:00').getDay()]
+}
+
 export function todayLabel() {
   return new Date().toLocaleDateString('en-CA', {
     weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,

@@ -3,8 +3,8 @@ import Sheet from '../Sheet'
 import WorkoutForm from '../forms/WorkoutForm'
 import WorkoutDetail from '../WorkoutDetail'
 import WorkoutSession from '../WorkoutSession'
-import { getRecentWorkouts, getWorkoutsThisWeek, logWorkout } from '../../lib/db'
-import { weekStart, torontoDate, WORKOUT_SCHEDULE, formatShortDate, todaySchedule } from '../../lib/dates'
+import { getRecentWorkouts, getWorkoutsThisWeek, logWorkout, getPlanPeriods } from '../../lib/db'
+import { weekStart, torontoDate, formatShortDate, scheduleFor } from '../../lib/dates'
 import { WORKOUTS } from '../../lib/workouts'
 
 const ACTIVITY_META = {
@@ -31,13 +31,15 @@ export default function WorkoutsTab({ onSaved }) {
   const [sessionType, setSessionType] = useState(null)
   const [recent, setRecent] = useState([])
   const [thisWeek, setThisWeek] = useState([])
+  const [periods, setPeriods] = useState([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [r, w] = await Promise.all([getRecentWorkouts(20), getWorkoutsThisWeek()])
+    const [r, w, p] = await Promise.all([getRecentWorkouts(20), getWorkoutsThisWeek(), getPlanPeriods()])
     setRecent(r)
     setThisWeek(w)
+    setPeriods(p)
     setLoading(false)
   }, [])
 
@@ -69,14 +71,15 @@ export default function WorkoutsTab({ onSaved }) {
 
   const ws = weekStart()
   const today = torontoDate()
-  const scheduled = todaySchedule()
+  const scheduled = scheduleFor(today, periods)
   const activeType = sessionType || scheduled.type
+  const showVacation = scheduled.vacation && !sessionType
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(ws + 'T00:00:00')
     d.setDate(d.getDate() + i)
     const dateStr = d.toISOString().split('T')[0]
-    const sched = WORKOUT_SCHEDULE[d.getDay()]
+    const sched = scheduleFor(dateStr, periods)
     const logged = thisWeek.find(w => w.toronto_date === dateStr)
     return { dateStr, sched, logged, isToday: dateStr === today }
   })
@@ -100,7 +103,7 @@ export default function WorkoutsTab({ onSaved }) {
             <span style={s.dayName}>{['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(dateStr + 'T00:00:00').getDay()]}</span>
             <span style={s.dayEmoji}>{logged ? (logged.completed ? '✅' : '❌') : sched.emoji}</span>
             <span style={{ ...s.dayType, color: logged?.completed ? '#4caf82' : '#666' }}>
-              {logged ? activityLabel(logged) : sched.type.toUpperCase()}
+              {logged ? activityLabel(logged) : sched.vacation ? 'OFF' : sched.type.toUpperCase()}
             </span>
           </button>
         ))}
@@ -110,9 +113,11 @@ export default function WorkoutsTab({ onSaved }) {
       <div style={s.todayHeader}>
         <div>
           <p style={s.sectionLabel}>Today's Workout</p>
-          <p style={s.todayName}>{activityEmoji(activeType)} {activityLabel(activeType)}</p>
+          <p style={s.todayName}>
+            {showVacation ? '🏖️ Vacation — nothing scheduled' : `${activityEmoji(activeType)} ${activityLabel(activeType)}`}
+          </p>
         </div>
-        <button style={s.startBtn} onClick={() => handleStartSession(activeType)}>▶ Start</button>
+        {!showVacation && <button style={s.startBtn} onClick={() => handleStartSession(activeType)}>▶ Start</button>}
       </div>
 
       {/* Type override strip */}

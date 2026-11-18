@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { torontoDate, weekStart, prevWeekStarts, nextWeekStr } from './dates'
+import { DEFAULT_WEEK_PLAN, dryDayNames } from './beerPlan'
 
 // ─── Sleep ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +45,14 @@ export async function getLatestSleepLogs(limit = 14) {
 
 // ─── Beer ─────────────────────────────────────────────────────────────────────
 
-export async function logBeer(pints, isLastOfNight = false, notes = null) {
+// kind: 'beer' (default) or 'sample' (work QA sampling — see SAMPLE_DRY_LIMIT in beerPlan.js)
+export async function logBeer(pints, isLastOfNight = false, notes = null, kind = 'beer') {
   const { error } = await supabase.from('beer_logs').insert({
     toronto_date: torontoDate(),
     pints,
     is_last_of_night: isLastOfNight,
     notes,
+    ...(kind !== 'beer' && { kind }),   // omit for plain beer so inserts work before the kind column exists
   })
   if (error) throw error
 }
@@ -91,6 +94,88 @@ export async function setBeerGoal(targetPints, alcoholFreeDays = []) {
     target_pints: targetPints,
     alcohol_free_days: alcoholFreeDays,
   }, { onConflict: 'week_start' })
+  if (error) throw error
+}
+
+// ─── Beer plan ────────────────────────────────────────────────────────────────
+// beer_goals holds one row per week (week_start = Monday) plus a 'template' row
+// used for weeks that haven't been customised. day_plan is keyed by getDay().
+
+const PLAN_TEMPLATE_KEY = 'template'
+
+export async function getWeekPlan(ws = weekStart()) {
+  const fallback = { week_start: ws, ...DEFAULT_WEEK_PLAN, source: 'default' }
+  const { data, error } = await supabase
+    .from('beer_goals')
+    .select('*')
+    .in('week_start', [ws, PLAN_TEMPLATE_KEY])
+  if (error) { console.warn('beer_goals:', error.message); return fallback }
+  const week = data.find(r => r.week_start === ws)
+  const tmpl = data.find(r => r.week_start === PLAN_TEMPLATE_KEY)
+  if (week?.day_plan) return { ...week, source: 'week' }
+  const base = tmpl?.day_plan ? tmpl : DEFAULT_WEEK_PLAN
+  return {
+    week_start: ws,
+    target_pints: week?.target_pints ?? base.target_pints,
+    day_plan: base.day_plan,
+    source: tmpl?.day_plan ? 'template' : 'default',
+  }
+}
+
+// scope: 'week' = this week only (e.g. a dry-day swap); 'default' = template for future weeks + this week.
+export async function saveWeekPlan({ target_pints, day_plan }, scope = 'week', ws = weekStart()) {
+  const row = { target_pints, day_plan, alcohol_free_days: dryDayNames(day_plan) }
+  const rows = [{ week_start: ws, ...row }]
+  if (scope === 'default') rows.push({ week_start: PLAN_TEMPLATE_KEY, ...row })
+  const { error } = await supabase.from('beer_goals').upsert(rows, { onConflict: 'week_start' })
+  if (error) throw error
+}
+
+// ─── Plan periods (dry weeks, vacations) ──────────────────────────────────────
+
+export async function getPlanPeriods() {
+  const { data, error } = await supabase
+    .from('plan_periods')
+    .select('*')
+    .order('start_date', { ascending: true })
+  if (error) { console.warn('plan_periods:', error.message); return [] }
+  return data
+}
+
+export async function addPlanPeriod({ kind, start_date, end_date = null, label = null }) {
+  const { error } = await supabase.from('plan_periods').insert({ kind, start_date, end_date, label })
+  if (error) throw error
+}
+
+export async function updatePlanPeriod(id, fields) {
+  const { error } = await supabase.from('plan_periods').update(fields).eq('id', id)
+  if (error) throw error
+}
+
+export async function deletePlanPeriod(id) {
+  const { error } = await supabase.from('plan_periods').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Beer intentions (morning commitment) ─────────────────────────────────────
+
+export async function getTodayIntention() {
+  const { data, error } = await supabase
+    .from('beer_intentions')
+    .select('*')
+    .eq('toronto_date', torontoDate())
+    .maybeSingle()
+  if (error) { console.warn('beer_intentions:', error.message); return null }
+  return data
+}
+
+export async function setIntention({ plan_type, cap = null, note = null }) {
+  const { error } = await supabase.from('beer_intentions').upsert({
+    toronto_date: torontoDate(),
+    plan_type,
+    cap: plan_type === 'cap' ? cap : null,
+    note: note || null,
+  }, { onConflict: 'toronto_date' })
   if (error) throw error
 }
 
@@ -573,10 +658,11 @@ export async function getWeeklySummary() {
   const ws = weekStart()
   const today = torontoDate()
 
-  const [sleepLogs, beerData, beerGoal, energyLogs, vitaminData, workouts] = await Promise.all([
+  const [sleepLogs, beerData, weekPlan, periods, energyLogs, vitaminData, workouts] = await Promise.all([
     getLatestSleepLogs(14),
     getWeeklyBeerData(),
-    getCurrentBeerGoal(),
+    getWeekPlan(ws),
+    getPlanPeriods(),
     getRecentEnergyLogs(7),
     getWeeklyVitaminAdherence(),
     getWorkoutsThisWeek(),
@@ -599,7 +685,7 @@ export async function getWeeklySummary() {
   return {
     weekStart: ws,
     sleep: { logs: weekSleepLogs, avgQuality: avgSleepQuality, avgHours: avgHoursSlept },
-    beer: { total: beerData.total, goal: beerGoal?.target_pints || 14 },
+    beer: { total: beerData.total, goal: weekPlan.target_pints, logs: beerData.logs, weekPlan, periods, today },
     energy: { avg: avgEnergy, crashes: energyCrashes },
     vitamins: vitaminData,
     workouts: { logs: workouts, completed: workouts.filter(w => w.completed).length },
