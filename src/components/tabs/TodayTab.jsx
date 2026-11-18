@@ -13,6 +13,7 @@ import MobilitySession from '../MobilitySession'
 import BeerPlanCard from '../BeerPlanCard'
 import IntentionForm from '../forms/IntentionForm'
 import BeerPlanEditor from '../forms/BeerPlanEditor'
+import RemindersSettings from '../forms/RemindersSettings'
 import {
   getLatestSleepLogs, getTodayBeerLogs, getTodayCaffeine,
   getTodayEnergy, getTodayVitamins, getTodayWorkout,
@@ -24,8 +25,9 @@ import { todayLabel, torontoDate, scheduleFor, formatHours, formatShortDate } fr
 import { MOBILITY_MODES, defaultMobilityMode } from '../../lib/mobility'
 import { planForDate, dayStatus, daysBetween } from '../../lib/beerPlan'
 
-export default function TodayTab({ onSaved }) {
-  const [sheet, setSheet] = useState(null)
+// initialSheet: opened when arriving from a reminder notification (e.g. 'vitamin', 'intention').
+export default function TodayTab({ onSaved, initialSheet = null }) {
+  const [sheet, setSheet] = useState(initialSheet)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -175,7 +177,10 @@ export default function TodayTab({ onSaved }) {
   return (
     <div style={s.container}>
       <div style={s.header}>
-        <p style={s.dateLabel}>{todayLabel()}</p>
+        <div style={s.headerTop}>
+          <p style={s.dateLabel}>{todayLabel()}</p>
+          <button style={s.bellBtn} onClick={() => setSheet('reminders')} aria-label="Reminders">🔔</button>
+        </div>
         <div style={s.scheduleBadge}>
           <span>{schedule.emoji}</span>
           <span style={s.scheduleText}>{schedule.label}</span>
@@ -293,6 +298,9 @@ export default function TodayTab({ onSaved }) {
       <Sheet open={sheet === 'beerplan'} onClose={() => setSheet(null)} title="Beer Plan">
         {sheet === 'beerplan' && <BeerPlanEditor weekPlan={weekPlan} periods={periods} onSaved={() => load(true)} />}
       </Sheet>
+      <Sheet open={sheet === 'reminders'} onClose={() => setSheet(null)} title="Reminders">
+        {sheet === 'reminders' && <RemindersSettings />}
+      </Sheet>
       <Sheet open={sheet === 'mobility'} onClose={() => setSheet(null)} title="Morning Mobility">
         {sheet === 'mobility' && <MobilitySession initialMode={mobilityMode} onComplete={handleMobilityComplete} />}
       </Sheet>
@@ -308,6 +316,8 @@ const s = {
   container: { padding: '20px 16px 32px' },
   loading: { padding: 40, textAlign: 'center', color: '#666' },
   header: { marginBottom: 20 },
+  headerTop: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  bellBtn: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: '2px 4px', lineHeight: 1 },
   dateLabel: { margin: '0 0 10px', fontSize: 22, fontWeight: 700, color: '#eee' },
   scheduleBadge: { display: 'inline-flex', alignItems: 'center', gap: 8, background: '#1a1a2e', borderRadius: 10, padding: '8px 14px', fontSize: 14, fontWeight: 600, color: '#ccc' },
   scheduleText: {},

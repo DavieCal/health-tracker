@@ -29,6 +29,23 @@ export const DEFAULT_WEEK_PLAN = {
   },
 }
 
+// beer_goals row key for the default plan used by weeks without their own row.
+export const PLAN_TEMPLATE_KEY = 'template'
+
+// Pick the plan for week `ws` from beer_goals rows: week row → template row → DEFAULT_WEEK_PLAN.
+export function resolveWeekPlan(rows, ws) {
+  const week = rows.find(r => r.week_start === ws)
+  const tmpl = rows.find(r => r.week_start === PLAN_TEMPLATE_KEY)
+  if (week?.day_plan) return { ...week, source: 'week' }
+  const base = tmpl?.day_plan ? tmpl : DEFAULT_WEEK_PLAN
+  return {
+    week_start: ws,
+    target_pints: week?.target_pints ?? base.target_pints,
+    day_plan: base.day_plan,
+    source: tmpl?.day_plan ? 'template' : 'default',
+  }
+}
+
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]   // Mon-first, matching weekStart()
 export const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 

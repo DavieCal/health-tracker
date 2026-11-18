@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { torontoDate, weekStart, prevWeekStarts, nextWeekStr } from './dates'
-import { DEFAULT_WEEK_PLAN, dryDayNames } from './beerPlan'
+import { dryDayNames, resolveWeekPlan, PLAN_TEMPLATE_KEY } from './beerPlan'
+import { REMINDER_SETTINGS_ID, mergeReminderSettings, toReminderSettings } from './reminders'
 
 // ─── Sleep ────────────────────────────────────────────────────────────────────
 
@@ -101,25 +102,13 @@ export async function setBeerGoal(targetPints, alcoholFreeDays = []) {
 // beer_goals holds one row per week (week_start = Monday) plus a 'template' row
 // used for weeks that haven't been customised. day_plan is keyed by getDay().
 
-const PLAN_TEMPLATE_KEY = 'template'
-
 export async function getWeekPlan(ws = weekStart()) {
-  const fallback = { week_start: ws, ...DEFAULT_WEEK_PLAN, source: 'default' }
   const { data, error } = await supabase
     .from('beer_goals')
     .select('*')
     .in('week_start', [ws, PLAN_TEMPLATE_KEY])
-  if (error) { console.warn('beer_goals:', error.message); return fallback }
-  const week = data.find(r => r.week_start === ws)
-  const tmpl = data.find(r => r.week_start === PLAN_TEMPLATE_KEY)
-  if (week?.day_plan) return { ...week, source: 'week' }
-  const base = tmpl?.day_plan ? tmpl : DEFAULT_WEEK_PLAN
-  return {
-    week_start: ws,
-    target_pints: week?.target_pints ?? base.target_pints,
-    day_plan: base.day_plan,
-    source: tmpl?.day_plan ? 'template' : 'default',
-  }
+  if (error) console.warn('beer_goals:', error.message)
+  return resolveWeekPlan(error ? [] : data, ws)
 }
 
 // scope: 'week' = this week only (e.g. a dry-day swap); 'default' = template for future weeks + this week.
@@ -717,4 +706,42 @@ export async function getTodayMobility() {
     .maybeSingle()
   if (error) { console.warn('mobility_logs:', error.message); return null }
   return data
+}
+
+// ─── Push reminders ───────────────────────────────────────────────────────────
+// Sending happens in scripts/send-reminders.js (GitHub Actions cron).
+
+export async function savePushSubscription(sub, device) {
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    endpoint: sub.endpoint,
+    p256dh: sub.keys.p256dh,
+    auth: sub.keys.auth,
+    device,
+    last_seen: new Date().toISOString(),
+  }, { onConflict: 'endpoint' })
+  if (error) throw error
+}
+
+export async function deletePushSubscription(endpoint) {
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
+  if (error) throw error
+}
+
+export async function getReminderSettings() {
+  const { data, error } = await supabase
+    .from('reminder_settings')
+    .select('settings')
+    .eq('id', REMINDER_SETTINGS_ID)
+    .maybeSingle()
+  if (error) console.warn('reminder_settings:', error.message)
+  return mergeReminderSettings(error ? null : data?.settings)
+}
+
+export async function saveReminderSettings(reminders) {
+  const { error } = await supabase.from('reminder_settings').upsert({
+    id: REMINDER_SETTINGS_ID,
+    settings: toReminderSettings(reminders),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' })
+  if (error) throw error
 }

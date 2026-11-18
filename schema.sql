@@ -153,3 +153,34 @@ create table if not exists plan_periods (
   created_at timestamptz default now()
 );
 alter table plan_periods disable row level security;
+
+-- ─── Push reminders (2026-11) ─────────────────────────────────────────────────
+-- Sent by scripts/send-reminders.js from GitHub Actions (.github/workflows/reminders.yml)
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  device text,
+  last_seen timestamptz default now(),
+  created_at timestamptz default now()
+);
+alter table push_subscriptions disable row level security;
+
+-- Single row (id = 'default'): { [reminderId]: { on, time, weekendTime } }
+create table if not exists reminder_settings (
+  id text primary key,
+  settings jsonb not null default '{}',
+  updated_at timestamptz default now()
+);
+alter table reminder_settings disable row level security;
+
+-- One row per reminder per day, so each fires once even though the cron runs every 15 min
+create table if not exists reminder_log (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null,
+  kind text not null,
+  created_at timestamptz default now(),
+  unique (toronto_date, kind)
+);
+alter table reminder_log disable row level security;

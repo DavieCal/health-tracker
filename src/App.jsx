@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import TodayTab from './components/tabs/TodayTab'
 import WorkoutsTab from './components/tabs/WorkoutsTab'
 import WeeklyTab from './components/tabs/WeeklyTab'
@@ -13,15 +13,37 @@ const TABS = [
   { id: 'history',  label: 'Days',     icon: '📅' },
 ]
 
+// Reminder notifications open the app with ?open=<sheet> (cold start) or post an 'open-sheet' message (app already open).
+const SHEET_PARAM = 'open'
+
 export default function App() {
   const [tab, setTab] = useState('today')
   const [refreshKey, setRefreshKey] = useState(0)
-  function bump() { setRefreshKey(k => k + 1) }
+  const [pendingSheet, setPendingSheet] = useState(() => new URLSearchParams(window.location.search).get(SHEET_PARAM))
+  function bump() { setPendingSheet(null); setRefreshKey(k => k + 1) }
+  function switchTab(id) { setPendingSheet(null); setTab(id) }
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has(SHEET_PARAM)) {
+      url.searchParams.delete(SHEET_PARAM)
+      window.history.replaceState(null, '', url)
+    }
+    if (!('serviceWorker' in navigator)) return
+    function onMessage(e) {
+      if (e.data?.type !== 'open-sheet') return
+      setTab('today')
+      setPendingSheet(e.data.sheet)
+      setRefreshKey(k => k + 1)   // remount Today so it opens the sheet with fresh data
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
 
   return (
     <div style={s.app}>
       <main style={s.main}>
-        {tab === 'today'    && <TodayTab    key={refreshKey} onSaved={bump} />}
+        {tab === 'today'    && <TodayTab    key={refreshKey} onSaved={bump} initialSheet={pendingSheet} />}
         {tab === 'workouts' && <WorkoutsTab key={refreshKey} onSaved={bump} />}
         {tab === 'weekly'   && <WeeklyTab   key={refreshKey} />}
         {tab === 'progress' && <ProgressTab />}
@@ -32,7 +54,7 @@ export default function App() {
           <button
             key={t.id}
             style={{ ...s.navBtn, color: tab === t.id ? '#4f9cf9' : '#555' }}
-            onClick={() => setTab(t.id)}
+            onClick={() => switchTab(t.id)}
           >
             <span style={s.navIcon}>{t.icon}</span>
             <span style={s.navLabel}>{t.label}</span>

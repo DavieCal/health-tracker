@@ -36,7 +36,10 @@ src/
 │   ├── db.js                 All Supabase queries (one function per operation)
 │   ├── dates.js              Toronto timezone helpers + WORKOUT_SCHEDULE
 │   ├── workouts.js           Full workout data (exercises, cues, timed flags, equipment variants, finisher)
-│   └── mobility.js           Morning mobility routine (doses per quick/full mode)
+│   ├── mobility.js           Morning mobility routine (doses per quick/full mode)
+│   ├── beerPlan.js           Beer plan / dry periods / sample rule (pure)
+│   ├── reminders.js          Reminder definitions + due logic (shared with the cron script)
+│   └── push.js               Browser push subscription
 ├── components/
 │   ├── tabs/
 │   │   ├── TodayTab.jsx      Quick-log grid + today's summary
@@ -93,6 +96,14 @@ Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 mi
 - Morning commitment: `beer_intentions` (one row per `toronto_date`), prefilled from the day's plan.
 - New-table reads (`getWeekPlan`, `getPlanPeriods`, `getTodayIntention`, `getTodayMobility`) swallow errors and fall back, so the app loads even if a migration hasn't been run.
 
+### Push reminders (`lib/reminders.js`, `lib/push.js`, `scripts/send-reminders.js`)
+- **Sender:** `.github/workflows/reminders.yml` runs `scripts/send-reminders.js` every 15 min (UTC 09–02). No Supabase Edge Function. The script imports the pure libs (`dates.js`, `beerPlan.js`, `reminders.js`, `mobility.js`) directly — keep those free of Vite/browser/Supabase imports and use explicit `.js` extensions on any imports they add.
+- **Reminders** are defined in `REMINDERS` (id, time, optional `weekendTime`, `sundayOnly`, `sheet` to open on tap). User overrides live in `reminder_settings` (one row, `id='default'`). A reminder is due from its time until `REMINDER_WINDOW_MIN` later; each builder in the script returns null if the thing is already logged. `reminder_log` (unique date+kind) makes each fire once per day. Vacation days send nothing.
+- **Devices:** 🔔 on Today → `RemindersSettings` → `enablePush()` subscribes and stores in `push_subscriptions`; expired subscriptions (404/410) are deleted by the script.
+- **Service worker:** generateSW + `workbox.importScripts: ['push-sw.js']` (`public/push-sw.js`). Notification tap → `?open=<sheet>` (cold start) or `postMessage({type:'open-sheet'})` → `App` passes `initialSheet` to `TodayTab`. Push only works in the built app, not `npm run dev`.
+- **Keys:** VAPID public key is in `reminders.js` and the workflow; private key in `.env` locally and the `VAPID_PRIVATE_KEY` Actions secret.
+- **Test locally:** `npm run reminders -- --dry-run --at=07:35 --date=2026-12-08` (prints what would send). Real test push: Actions → Reminders → Run workflow → test.
+
 ### db.js conventions
 - Each table has focused functions: `logX()` for inserts, `getTodayX()` / `getRecentX()` / `getXChartData()` for reads
 - Sleep is paired: `logBedtime()` creates a row with `wake_time = null`; `logWake()` finds the most recent unpaired row and updates it
@@ -118,6 +129,9 @@ Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 mi
 | `mood_logs` | Score 1–5 |
 | `illness_episodes` | start_date / end_date pairs |
 | `mobility_logs` | Morning mobility: mode (quick/full), duration_min, steps_done/total |
+| `push_subscriptions` | Web Push endpoint + keys per device |
+| `reminder_settings` | One row (`id='default'`): per-reminder on/time/weekendTime jsonb |
+| `reminder_log` | One row per reminder sent per day (dedupe) |
 
 RLS is disabled on all tables (personal app, anon key).
 

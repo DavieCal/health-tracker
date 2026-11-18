@@ -1,0 +1,36 @@
+name: Reminders
+
+# Push reminders (scripts/send-reminders.js). Runs every 15 min during waking hours
+# (UTC 09:00–02:59 ≈ 4–5am to 10pm Toronto). The script decides what is due, skips
+# anything already logged or already sent, and sends nothing on vacation days.
+on:
+  schedule:
+    - cron: '7,22,37,52 0-2,9-23 * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Send a test notification to every subscribed device'
+        type: boolean
+        default: false
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - run: node scripts/send-reminders.js ${{ inputs.test && '--test' || '' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VAPID_PUBLIC_KEY: BPt38JUOU1UryUH0f1DIAEVH4Wvod9N8Wdlj1YuFCZ9ADIKPe02hiF_vDef1O9T7SwTLDFTnsk4SJgzMjThoFko
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
