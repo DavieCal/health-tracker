@@ -26,8 +26,9 @@ const DRY_RUN = args.includes('--dry-run')
 const AT = args.find(a => a.startsWith('--at='))?.slice(5)
 const DATE = args.find(a => a.startsWith('--date='))?.slice(7)
 
+// Tolerates secrets pasted as `NAME=value`, with quotes, or with stray whitespace.
 function env(name) {
-  const v = process.env[name]
+  const v = (process.env[name] || '').trim().replace(new RegExp(`^${name}\\s*=\\s*`), '').replace(/^['"]|['"]$/g, '').trim()
   if (!v) { console.error(`Missing env ${name}`); process.exit(1) }
   return v
 }
