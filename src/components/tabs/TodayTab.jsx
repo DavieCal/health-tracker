@@ -199,14 +199,6 @@ export default function TodayTab({ onSaved, initialSheet = null }) {
         </button>
       )}
 
-      {!onVacation && dryPeriod && (
-        <div style={s.dryBanner}>
-          🌵 {dryPeriod.label || 'Dry week'} · {dryPeriod.start_date <= today
-            ? `day ${daysBetween(dryPeriod.start_date, today) + 1} of ${daysBetween(dryPeriod.start_date, dryPeriod.end_date) + 1}`
-            : `starts ${formatShortDate(dryPeriod.start_date)} · in ${daysBetween(today, dryPeriod.start_date)} day${daysBetween(today, dryPeriod.start_date) === 1 ? '' : 's'}`}
-        </div>
-      )}
-
       {illness && (
         <div style={s.illnessBanner}>
           🤒 Currently sick · <button style={s.illnessBtn} onClick={() => setSheet('illness')}>Mark recovered</button>
@@ -264,6 +256,14 @@ export default function TodayTab({ onSaved, initialSheet = null }) {
           </div>
         ))}
       </div>
+
+      {!onVacation && dryPeriod && (
+        <div style={s.dryBanner}>
+          🌵 {dryPeriod.label || 'Dry week'} · {dryPeriod.start_date <= today
+            ? `day ${daysBetween(dryPeriod.start_date, today) + 1} of ${daysBetween(dryPeriod.start_date, dryPeriod.end_date) + 1}`
+            : `starts ${formatShortDate(dryPeriod.start_date)} · in ${daysBetween(today, dryPeriod.start_date)} day${daysBetween(today, dryPeriod.start_date) === 1 ? '' : 's'}`}
+        </div>
+      )}
 
       <Sheet open={sheet === 'sleep'} onClose={() => setSheet(null)} title="Sleep">
         <SleepForm latestSleep={latestSleep} onSave={handleSave} />
@@ -324,7 +324,7 @@ const s = {
   illnessBanner: { background: '#2a1a1a', border: '1px solid #e06c75', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#e06c75', marginBottom: 16 },
   illnessBtn: { background: 'none', border: 'none', color: '#4caf82', cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: 14 },
   vacationBanner: { display: 'block', width: '100%', textAlign: 'left', background: '#10283a', border: '1px solid #4f9cf9', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#8cc4ff', marginBottom: 16, cursor: 'pointer' },
-  dryBanner: { background: '#1a2a1a', border: '1px solid #4caf82', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#4caf82', marginBottom: 16 },
+  dryBanner: { background: '#1a2a1a', border: '1px solid #4caf82', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#4caf82', marginTop: 20 },
   mobilityCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: '#1a1a2e', border: '1px solid #2a2a3e', borderRadius: 12, padding: '14px 16px', marginBottom: 20, cursor: 'pointer', textAlign: 'left' },
   mobilitySun: { width: 32, height: 16, borderRadius: '32px 32px 0 0', background: '#e9b949', flexShrink: 0 },
   mobilityInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },
