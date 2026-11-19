@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "reminders": "node --env-file-if-exists=.env scripts/send-reminders.js"
+    "reminders": "node --env-file-if-exists=.env scripts/send-reminders.js",
+    "checkin": "node --env-file-if-exists=.env scripts/checkin.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",

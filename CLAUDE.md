@@ -2,30 +2,39 @@
 
 Mobile-installable PWA for Dave's personal health logging. React 19 + Vite + vite-plugin-pwa, deployed to GitHub Pages. All data writes to Supabase (same shared project as notes-app and other PA ecosystem agents).
 
-**Paired with:** Health Coach Telegram bot (`C:/Projects/health-coach`) — bot is coaching-only and reads from the same Supabase tables this app writes to.
+**Paired with:** Health Coach Telegram bot (`C:/Projects/health-coach`) — on-demand coaching chat between check-ins (no scheduled nudges; this app sends reminders). It reads the same Supabase tables, imports the routines from `src/lib/` (keep `dates.js`, `workouts.js`, `mobility.js`, `beerPlan.js` pure), and saves its chat to `coach_messages`.
 
 ## Running locally
 
 ```bash
-npm run dev     # http://localhost:5173/health-tracker/
-npm run build   # production build → dist/
+npm run dev        # http://localhost:5173/health-tracker/ (no service worker → push can't be tested here)
+npm run build      # production build → dist/
+npm run reminders -- --dry-run [--at=HH:MM] [--date=YYYY-MM-DD]   # what reminders would send
+npm run checkin [-- --days=N]                                     # coaching data report (/checkin)
 ```
 
-Requires `.env.local` with:
+Requires `.env` (gitignored) with:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_KEY` (anon key)
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (only for sending reminders locally)
+
+Windows/Git Bash gotcha: heredocs can mangle backslashes and nested quotes in generated JS/Python (a regex `\\s` silently becomes `\s`). Write scripts with the Write tool instead.
 
 ## Deployment
 
 GitHub Actions deploys automatically on push to `master` → GitHub Pages at `https://daviecal.github.io/health-tracker/`.
 
-Secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set in the repo's GitHub Actions secrets. See `.github/workflows/deploy.yml`.
+Secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` and `VAPID_PRIVATE_KEY` are set in the repo's GitHub Actions secrets. Workflows:
+- `deploy.yml` — build + Pages on push to `master`
+- `reminders.yml` — push reminders cron every 15 min; Run workflow → "test" sends a test push
+
+**The repo is public** — never commit personal health details or keys.
 
 ## Architecture
 
 ```
 src/
-├── App.jsx                   Bottom tab bar: Today | Workouts | Weekly | Progress
+├── App.jsx                   Bottom tab bar: Today | Workouts | Weekly | Progress | Days; handles ?open=<sheet> from notifications
 ├── main.jsx
 ├── Sheet.jsx                 Reusable bottom-sheet overlay (used by all forms)
 ├── WorkoutDetail.jsx         Read-only workout reference (warm-up, circuit, cool-down)
@@ -41,8 +50,9 @@ src/
 │   ├── reminders.js          Reminder definitions + due logic (shared with the cron script)
 │   └── push.js               Browser push subscription
 ├── components/
+│   ├── BeerPlanCard.jsx      Today's beer plan, commit, week budget
 │   ├── tabs/
-│   │   ├── TodayTab.jsx      Quick-log grid + today's summary
+│   │   ├── TodayTab.jsx      Quick-log grid + today's summary, mobility card, beer card, 🔔 reminders
 │   │   ├── WorkoutsTab.jsx   Week strip, today's workout, session, history
 │   │   ├── WeeklyTab.jsx     This-week stat cards
 │   │   └── ProgressTab.jsx   recharts trend charts
@@ -53,9 +63,17 @@ src/
 │       ├── EnergyForm.jsx    Score 1–5 with labels
 │       ├── WorkoutForm.jsx   Type + completed + notes + optional sets table
 │       ├── VitaminForm.jsx   Dose picker (morning/afternoon/evening/soak)
-│       ├── WeightForm.jsx    kg input
+│       ├── WeightForm.jsx    Linked lb/kg inputs (stored as weight_kg; Today + Progress show lb)
 │       ├── MoodForm.jsx      Emoji score 1–5
-│       └── IllnessForm.jsx   Start episode / mark recovered
+│       ├── IllnessForm.jsx   Start episode / mark recovered
+│       ├── IntentionForm.jsx Morning beer commitment
+│       ├── BeerPlanEditor.jsx Weekly plan, dry weeks, vacation
+│       └── RemindersSettings.jsx Push on/off per device, reminder toggles + times
+public/push-sw.js             Push + notificationclick handlers (imported into the Workbox SW)
+scripts/
+├── send-reminders.js         Push reminder sender (GitHub Actions cron)
+└── checkin.js                Coaching data report / save check-in
+.claude/commands/checkin.md   /checkin coaching session
 ```
 
 ## Key patterns
@@ -104,6 +122,10 @@ Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 mi
 - **Keys:** VAPID public key is in `reminders.js` and the workflow; private key in `.env` locally and the `VAPID_PRIVATE_KEY` Actions secret.
 - **Test locally:** `npm run reminders -- --dry-run --at=07:35 --date=2026-12-08` (prints what would send). Real test push: Actions → Reminders → Run workflow → test.
 
+### Coaching check-ins (`/checkin`)
+- `.claude/commands/checkin.md` drives a coaching session in Claude Code; the report includes the bot chat (`coach_messages`) since the last check-in; `scripts/checkin.js` (`npm run checkin -- --days=14`) prints the data report, `--save=file.json` stores the outcome in `coach_checkins` so the next check-in can follow up.
+- The repo is public: keep personal health details out of committed files (they live in Claude memory and `C:/Projects/health-coach/context.js`).
+
 ### db.js conventions
 - Each table has focused functions: `logX()` for inserts, `getTodayX()` / `getRecentX()` / `getXChartData()` for reads
 - Sleep is paired: `logBedtime()` creates a row with `wake_time = null`; `logWake()` finds the most recent unpaired row and updates it
@@ -132,6 +154,8 @@ Card at top of Today tab → `MobilitySession`. Default mode is Quick (5–10 mi
 | `push_subscriptions` | Web Push endpoint + keys per device |
 | `reminder_settings` | One row (`id='default'`): per-reminder on/time/weekendTime jsonb |
 | `reminder_log` | One row per reminder sent per day (dedupe) |
+| `coach_checkins` | /checkin outcomes: summary, focus[], changes[] |
+| `coach_messages` | Telegram bot chat: role user/assistant/reset (reset = bot forgot earlier messages) |
 
 RLS is disabled on all tables (personal app, anon key).
 

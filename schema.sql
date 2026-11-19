@@ -184,3 +184,27 @@ create table if not exists reminder_log (
   unique (toronto_date, kind)
 );
 alter table reminder_log disable row level security;
+
+-- ─── Coaching check-ins (2026-11) ─────────────────────────────────────────────
+-- Written by the /checkin Claude Code command (scripts/checkin.js --save)
+create table if not exists coach_checkins (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null,
+  summary text not null,
+  focus jsonb default '[]',
+  changes jsonb default '[]',
+  created_at timestamptz default now()
+);
+alter table coach_checkins disable row level security;
+
+-- Health-coach bot chat (Telegram/CLI). Written by C:/Projects/health-coach, read by /checkin.
+-- role: user | assistant | reset (marker written by /reset: the bot forgets earlier messages, /checkin still sees them)
+create table if not exists coach_messages (
+  id uuid primary key default gen_random_uuid(),
+  toronto_date text not null,
+  role text not null check (role in ('user', 'assistant', 'reset')),
+  content text not null default '',
+  created_at timestamptz default now()
+);
+create index if not exists coach_messages_created_at on coach_messages (created_at);
+alter table coach_messages disable row level security;
