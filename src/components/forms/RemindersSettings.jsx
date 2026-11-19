@@ -86,6 +86,12 @@ export default function RemindersSettings() {
                   <input type="time" style={s.timeInput} value={r.weekendTime} onChange={e => update(r.id, { weekendTime: e.target.value })} />
                 </label>
               )}
+              {r.outDate !== undefined && (
+                <label style={s.timeLabel}>
+                  Runs out on
+                  <input type="date" style={s.timeInput} value={r.outDate || ''} onChange={e => update(r.id, { outDate: e.target.value || null })} />
+                </label>
+              )}
             </div>
           )}
         </div>

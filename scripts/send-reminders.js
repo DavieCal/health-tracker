@@ -17,7 +17,7 @@ import {
   planForDate, planLabel, resolveWeekPlan, periodOn, addDays, weekdayOf, daysBetween,
   PLAN_TEMPLATE_KEY, WEEKDAY_NAMES,
 } from '../src/lib/beerPlan.js'
-import { mergeReminderSettings, isDue, REMINDER_SETTINGS_ID } from '../src/lib/reminders.js'
+import { mergeReminderSettings, isDue, REMINDER_SETTINGS_ID, REFILL_LEAD_DAYS } from '../src/lib/reminders.js'
 import { MOBILITY_MODES, defaultMobilityMode } from '../src/lib/mobility.js'
 
 const args = process.argv.slice(2)
@@ -92,7 +92,20 @@ const BUILDERS = {
     }
   },
 
-  vit_morning: vitamin('morning', '💊 Morning vitamins', 'D3 · BioSteel · Probiotic — not logged yet.'),
+  vit_morning: vitamin('morning', '💊 Morning vitamins + meds', 'D3 · BioSteel · Probiotic · meds — not logged yet.'),
+
+  // Daily from REFILL_LEAD_DAYS before the run-out date until the date is moved (after refilling).
+  async refill({ today, reminder }) {
+    if (!reminder.outDate) return null
+    const left = daysBetween(today, reminder.outDate)
+    if (left > REFILL_LEAD_DAYS) return null
+    const when = `${WEEKDAY_NAMES[weekdayOf(reminder.outDate)]} ${reminder.outDate.slice(5)}`
+    const body = left > 1 ? `Meds run out in ${left} days (${when}). Order a refill.`
+      : left === 1 ? 'Meds run out tomorrow. Order a refill today.'
+      : left === 0 ? 'Meds run out today. Order a refill.'
+      : `Meds ran out ${when}. Order a refill.`
+    return { title: '📦 Medication refill', body: `${body} Tap to set the new run-out date once refilled.` }
+  },
   vit_afternoon: vitamin('afternoon', '⚡ Afternoon check', 'Multi · Vit C · Zinc — and how’s your energy (1–5)?'),
   vit_evening: vitamin(['evening', 'soak'], '🌙 Evening magnesium', 'Magnesium (or soak night) — not logged yet.'),
 
@@ -175,7 +188,7 @@ async function main() {
 
   for (const r of mergeReminderSettings(settings?.settings)) {
     if (!isDue(r, now, weekday)) continue
-    const msg = await BUILDERS[r.id]({ today, periods })
+    const msg = await BUILDERS[r.id]({ today, periods, reminder: r })
     if (!msg) { console.log(`${r.id}: already done`); continue }
     const payload = { ...msg, url: `./?open=${r.sheet}`, tag: r.id }
     if (DRY_RUN) { console.log(`${r.id}: would send →`, payload); continue }

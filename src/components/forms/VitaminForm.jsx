@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { logVitamin } from '../../lib/db'
 
 const DOSES = [
-  { id: 'morning',   label: 'Morning',   desc: 'D3 · BioSteel · Probiotic' },
+  { id: 'morning',   label: 'Morning',   desc: 'D3 · BioSteel · Probiotic · Meds' },
   { id: 'afternoon', label: 'Afternoon', desc: 'Multi · Vit C · Zinc' },
   { id: 'evening',   label: 'Evening',   desc: 'Magnesium (non-soak)' },
   { id: 'soak',      label: 'Soak Night', desc: 'Epsom salt soak tonight' },

@@ -9,15 +9,20 @@ export const REMINDER_SETTINGS_ID = 'default'
 // A reminder can still fire this long after its time (the cron runs every 15 min and can lag).
 export const REMINDER_WINDOW_MIN = 120
 
+// Refill reminder starts this many days before the run-out date and repeats daily until the date is moved.
+export const REFILL_LEAD_DAYS = 5
+
 // `sheet` = which Today sheet opens when the notification is tapped.
 // `weekendTime` = optional different time on Sat/Sun.
+// `outDate` = user-set run-out date (YYYY-MM-DD) for the refill reminder; null = not set, never fires.
 // Each reminder is skipped if the thing is already logged, and all are skipped on vacation days.
 export const REMINDERS = [
   { id: 'mobility',       emoji: '🧘', label: 'Morning mobility',      hint: "If not done yet · includes today's workout", time: '06:00', weekendTime: '07:30', on: true,  sheet: 'mobility' },
   { id: 'beer_intention', emoji: '🍺', label: 'Beer intention',        hint: "Today's plan, if not committed yet",          time: '07:30', weekendTime: '09:00', on: true,  sheet: 'intention' },
-  { id: 'vit_morning',    emoji: '💊', label: 'Morning vitamins',      hint: 'D3 · BioSteel · Probiotic, if not logged',     time: '10:00', on: true,  sheet: 'vitamin' },
+  { id: 'vit_morning',    emoji: '💊', label: 'Morning vitamins + meds', hint: 'D3 · BioSteel · Probiotic · meds, if not logged', time: '09:00', on: true,  sheet: 'vitamin' },
   { id: 'vit_afternoon',  emoji: '⚡', label: 'Afternoon vits + energy', hint: 'Multi · Vit C · Zinc, plus energy check',    time: '14:00', on: true,  sheet: 'vitamin' },
   { id: 'vit_evening',    emoji: '🌙', label: 'Evening magnesium',     hint: 'If not logged (or soak night)',                time: '20:30', on: false, sheet: 'vitamin' },
+  { id: 'refill',         emoji: '📦', label: 'Medication refill',     hint: `Daily from ${REFILL_LEAD_DAYS} days before you run out · update the date after refilling`, time: '09:00', on: true, sheet: 'reminders', outDate: null },
   { id: 'weekly_plan',    emoji: '📅', label: 'Sunday week plan',      hint: "Next week's dry days — any swaps?",            time: '18:00', on: true,  sheet: 'beerplan', sundayOnly: true },
 ]
 
@@ -30,6 +35,7 @@ export function mergeReminderSettings(saved) {
 export function toReminderSettings(reminders) {
   return Object.fromEntries(reminders.map(r => [r.id, {
     on: r.on, time: r.time, ...(r.weekendTime ? { weekendTime: r.weekendTime } : {}),
+    ...(r.outDate !== undefined ? { outDate: r.outDate } : {}),
   }]))
 }
 
