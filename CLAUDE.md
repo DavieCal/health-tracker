@@ -26,7 +26,9 @@ GitHub Actions deploys automatically on push to `master` → GitHub Pages at `ht
 
 Secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` and `VAPID_PRIVATE_KEY` are set in the repo's GitHub Actions secrets. Workflows:
 - `deploy.yml` — build + Pages on push to `master`
-- `reminders.yml` — push reminders cron every 15 min; Run workflow → "test" sends a test push
+- `reminders.yml` — push reminders cron every 15 min (GitHub often delays or skips scheduled runs, so it is only the backup); Run workflow → "test" sends a test push
+
+**Primary reminder sender:** pm2 process `health-reminders` on Dave's PC runs `scripts/send-reminders.js` every 15 min (`--cron-restart "*/15 * * * *" --no-autorestart`, reads `.env`). Check with `pm2 logs health-reminders --lines 20 --nostream`. Both senders can run: `reminder_log` makes each reminder fire once per day.
 
 **The repo is public** — never commit personal health details or keys.
 
