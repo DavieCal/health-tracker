@@ -24,7 +24,7 @@ export default function ProgressTab() {
       getRecentMoodLogs(30),
       getRecentHealthDaily(30),
     ]).then(([energy, sleep, beer, workouts, weight, mood, healthDaily]) => {
-      setData({ energy, sleep: sleep.filter(r => r.wake_time).reverse(), beer, workouts, weight, mood, healthDaily })
+      setData({ energy, sleep: sleep.filter(r => r.wake_time).reverse(), beer, workouts, weight: weight.map(r => ({ ...r, weight_lb: Math.round(r.weight_kg * 2.20462 * 10) / 10 })), mood, healthDaily })
       setLoading(false)
     })
   }, [])
@@ -134,13 +134,13 @@ export default function ProgressTab() {
       </Chart>
 
       {weight.length >= 2 && (
-        <Chart title="Weight (kg)" color="#c678dd">
+        <Chart title="Weight (lb)" color="#c678dd">
           <LineChart data={weight} {...chartProps}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
             <XAxis dataKey="toronto_date" tickFormatter={formatShortDate} stroke="#555" />
             <YAxis stroke="#555" domain={['auto', 'auto']} />
-            <Tooltip formatter={v => [`${v}kg`, 'Weight']} labelFormatter={formatShortDate} contentStyle={ttStyle} />
-            <Line type="monotone" dataKey="weight_kg" stroke="#c678dd" strokeWidth={2} dot={false} />
+            <Tooltip formatter={v => [`${v}lb (${Math.round(v / 2.20462 * 10) / 10}kg)`, 'Weight']} labelFormatter={formatShortDate} contentStyle={ttStyle} />
+            <Line type="monotone" dataKey="weight_lb" stroke="#c678dd" strokeWidth={2} dot={false} />
           </LineChart>
         </Chart>
       )}

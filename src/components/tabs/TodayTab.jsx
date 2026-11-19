@@ -141,7 +141,7 @@ export default function TodayTab({ onSaved, initialSheet = null }) {
     },
     {
       id: 'weight', emoji: '⚖️', label: 'Weight',
-      value: weight ? `${weight.weight_kg}kg` : null,
+      value: weight ? `${Math.round(weight.weight_kg * 2.20462 * 10) / 10}lb` : null,
       color: '#aaa',
     },
     {
