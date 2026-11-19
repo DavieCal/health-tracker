@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import useWakeLock from '../hooks/useWakeLock'
 import { MOBILITY_MODES, MOBILITY_PHASES } from '../lib/mobility'
 
 export default function MobilitySession({ initialMode = 'full', onComplete }) {
+  useWakeLock()
   const [mode, setMode] = useState(initialMode)
   const [checked, setChecked] = useState([])          // step keys "phaseIdx-stepIdx"
   const [timerSeconds, setTimerSeconds] = useState({}) // step key → elapsed sec

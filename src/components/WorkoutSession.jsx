@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import useWakeLock from '../hooks/useWakeLock'
 import { WORKOUTS, EQUIPMENT, equipmentFor, optionsFor, defaultOption, resolveExercise } from '../lib/workouts'
 import { getLastExerciseWeight } from '../lib/db'
 
@@ -15,6 +16,7 @@ const emptyRepSets = () => [{ reps: '', weight: '' }, { reps: '', weight: '' }, 
 const emptyWeightSets = (w = '') => [{ weight: w }, { weight: w }, { weight: w }]
 
 export default function WorkoutSession({ type, onComplete }) {
+  useWakeLock()
   const workout = WORKOUTS[type]
 
   const [equipment, setEquipment] = useState(loadEquipment)   // e.g. ['band']
