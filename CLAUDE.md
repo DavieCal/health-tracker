@@ -36,10 +36,8 @@ Secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` and `VAPID_PRIVATE_KEY` are set
 src/
 ├── App.jsx                   Bottom tab bar: Today | Workouts | Weekly | Progress | Days; handles ?open=<sheet> from notifications
 ├── main.jsx
-├── Sheet.jsx                 Reusable bottom-sheet overlay (used by all forms)
-├── WorkoutDetail.jsx         Read-only workout reference (warm-up, circuit, cool-down)
-├── WorkoutSession.jsx        Interactive session: equipment picker, set logger, timers, finisher
-├── MobilitySession.jsx       Morning mobility checklist (Quick/Full modes, per-step timers)
+├── hooks/
+│   └── useWakeLock.js        Keeps the screen on while a workout/mobility session is open
 ├── lib/
 │   ├── supabase.js           Supabase client init
 │   ├── db.js                 All Supabase queries (one function per operation)
@@ -51,6 +49,10 @@ src/
 │   └── push.js               Browser push subscription
 ├── components/
 │   ├── BeerPlanCard.jsx      Today's beer plan, commit, week budget
+│   ├── Sheet.jsx             Reusable bottom-sheet overlay (used by all forms)
+│   ├── WorkoutDetail.jsx     Read-only workout reference (warm-up, circuit, cool-down)
+│   ├── WorkoutSession.jsx    Interactive session: equipment picker, set logger, timers, finisher (wake lock)
+│   ├── MobilitySession.jsx   Morning mobility checklist (Quick/Full modes, per-step timers, wake lock)
 │   ├── tabs/
 │   │   ├── TodayTab.jsx      Quick-log grid + today's summary, mobility card, beer card, 🔔 reminders
 │   │   ├── WorkoutsTab.jsx   Week strip, today's workout, session, history
@@ -74,6 +76,7 @@ scripts/
 ├── send-reminders.js         Push reminder sender (GitHub Actions cron)
 └── checkin.js                Coaching data report / save check-in
 .claude/commands/checkin.md   /checkin coaching session
+.claude/commands/coach-bot.md /coach-bot: status, logs, restart, clear memory of the Telegram coach bot
 ```
 
 ## Key patterns
